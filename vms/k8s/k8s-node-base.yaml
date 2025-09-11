@@ -2,9 +2,9 @@
 #Cloud-config
 merge_how:
   - name: list
-    settings: [append]
+    settings: [ append ]
   - name: dict
-    settings: [no_replace, recurse_list]
+    settings: [ no_replace, recurse_list ]
 
 hostname: ${NODE_HOST_NAME}
 

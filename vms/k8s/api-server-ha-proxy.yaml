@@ -1,9 +1,9 @@
 #Cloud-config
 merge_how:
   - name: list
-    settings: [append]
+    settings: [ append ]
   - name: dict
-    settings: [no_replace, recurse_list]
+    settings: [ no_replace, recurse_list ]
 
 write_files:
   - path: /var/local/keepalived.conf
@@ -133,7 +133,7 @@ write_files:
       
           mode tcp
           balance     roundrobin
-          
+      
           server cp-01-haproxy ${CP_01_IP}:${APISERVER_SRC_PORT} check verify none
           server cp-02-haproxy ${CP_02_IP}:${APISERVER_SRC_PORT} check verify none
           server cp-03-haproxy ${CP_03_IP}:${APISERVER_SRC_PORT} check verify none
@@ -194,12 +194,12 @@ runcmd:
 
   - export API_SERVER_VIP_ENTRY="$APISERVER_VIP control-plane"
 
-    # Check if the entry already exists in /etc/hosts
+  # Check if the entry already exists in /etc/hosts
   - if grep -q "^$API_SERVER_VIP_ENTRY$" /etc/hosts; then
-  -   echo "Entry '$API_SERVER_VIP_ENTRY' already exists in /etc/hosts. No changes needed."
+  - echo "Entry '$API_SERVER_VIP_ENTRY' already exists in /etc/hosts. No changes needed."
   - else
-  -   echo "Adding '$API_SERVER_VIP_ENTRY' to /etc/hosts..."
-    # Add the entry to /etc/hosts
-  -   echo "$API_SERVER_VIP_ENTRY" | sudo tee -a /etc/hosts > /dev/null
-  -   echo "Entry added successfully."
+  - echo "Adding '$API_SERVER_VIP_ENTRY' to /etc/hosts..."
+  # Add the entry to /etc/hosts
+  - echo "$API_SERVER_VIP_ENTRY" | sudo tee -a /etc/hosts > /dev/null
+  - echo "Entry added successfully."
   - fi

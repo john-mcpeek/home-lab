@@ -1,9 +1,9 @@
 #Cloud-config
 merge_how:
   - name: list
-    settings: [append]
+    settings: [ append ]
   - name: dict
-    settings: [no_replace, recurse_list]
+    settings: [ no_replace, recurse_list ]
 
 hostname: postgres
 
@@ -32,7 +32,7 @@ users:
   - default
   - name: john
     shell: /bin/bash
-    sudo:  "ALL=(ALL) NOPASSWD:ALL"
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
     ssh_authorized_keys:
       - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEfFY/CwPt0PdIL1bFoHZnxtYeAu00RUJfOqoZCGGKB8 john@John-xps-2025
       - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCjpFZcuDL8m8v1YwQXAE1lb8j9heylKZX7aSd5n+XAlyYl71bbRl8ldeXJFIP4fB0fa1urXe20wiUZTJK1I8OU4R0G4u4gMrkpkRXxIfZJVbHrkn8AA/2hX9VVu5XZdn9et5cuVs/nHfQBDL4vA5aDmO3rA0xaiIs/PnbnwuFLfOCw6JMmq112cG84F9iO2y/CCb/mEHplAP6dK1R/7neSPYk8i0LE3300iKxKle/mb7j6S6QD7AWebYd3Pk3lC+WAdSYaBCf3TtAOR0rncr6SPlGwBXPT4X7copf+W+3N2k5vXn5hhOBiPndhG/ZCoQKjVZifagQDRXcqrEtY4/kTY7AX8mIyV66ryLz5j2IOtTahuvIqIw9gnID/DmwHKDMLQXPDcR9AYgJ6RQe5Fm89DyH/c5r2ARM2sBXjCNiWzT0Dh2eOwgOyZMfC6yJY/fV5S7XxnbzvM041xusJuPJskDVzDmapgEaJ06YMBJNRvDRfWeZXnrgCnPx/2uL07pVr68gwvsR+9M2t1iV2uR6vrLSioiVhk06O7t9tP4l/OJ5Gs5BayBlbyV9i7WgpO3Ue6GbhNM4xn+23AbmJrj2aFp+4Uszz+40tUahNMAs7onS9MdFg12G3oTneyMUc67HohXfo3yJaRM6IffHnHoPLqmbpYs35zY7mBIwwgypunQ== root@pve
@@ -131,7 +131,7 @@ write_files:
       systemctl stop postgresql || true
       pg_dropcluster --stop ${PGVER} main || true
       echo "Default cluster dropped"
-        
+      
       # Format and mount /dev/sdb for PGDATA_MNT
       if lsblk -dn -o NAME | grep -q '^sdb$'; then
         if ! lsblk -f | grep -q '^sdb[0-9]'; then
@@ -215,7 +215,7 @@ write_files:
       systemctl --no-pager status ${PGSVC} || true
 
 runcmd:
-#  - /usr/local/sbin/enable_pg_remote.sh
+  #  - /usr/local/sbin/enable_pg_remote.sh
   - systemd-tmpfiles --create /etc/tmpfiles.d/disable-thp.conf
 
 
