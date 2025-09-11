@@ -10,7 +10,6 @@ function update_source_list() {
   else
     echo "'Components: no-subscription' found, no action needed."
   fi
-#  cat proxmox/ceph-repo-update.txt | tee -a /etc/apt/sources.list.d/ceph.sources > /dev/null
 
   # Turn off subscription Proxmox.
   ENTERPRISE_PVE_SOURCES="/etc/apt/sources.list.d/pve-enterprise.sources"
@@ -20,7 +19,6 @@ function update_source_list() {
   else
     echo "'Enabled: false' found, no action needed."
   fi
-#  echo "Enabled: false" | tee -a /etc/apt/sources.list.d/pve-enterprise.sources > /dev/null
 
   # Turn on no-subscription Proxmox.
   cp proxmox/proxmox.sources /etc/apt/sources.list.d/
