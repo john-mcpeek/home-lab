@@ -1,0 +1,9 @@
+[Unit]
+Description=Register Static IP in DNS
+After=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/register-dns.sh
+
+[Install]
+WantedBy=multi-user.target

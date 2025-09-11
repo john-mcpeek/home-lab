@@ -1,0 +1,9 @@
+options {
+    directory "/var/cache/bind";
+    recursion yes;
+    allow-query { any; };  // Restrict to your subnet if preferred, e.g., 192.168.1.0/24;
+    forwarders {
+        1.1.1.1;
+        8.8.8.8;
+    };
+};

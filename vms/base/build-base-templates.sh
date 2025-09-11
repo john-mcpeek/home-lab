@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+
+wget -nc -P /root https://cloud-images.ubuntu.com/releases/noble/release/ubuntu-24.04-server-cloudimg-amd64.img
+qm shutdown 9999
+qm destroy 9999
+
+# create a new VM with VirtIO SCSI controller
+qm create 9999 --name base-dns-register-static-ip \
+  --tags "base ubuntu static-ip" \
+  --nameserver "10.0.0.10 75.75.75.75" \
+  --net0 virtio,bridge=vmbr0 \
+  --scsihw virtio-scsi-single \
+  --cpu cputype=host \
+  --agent enabled=1 \
+  --memory 2048 \
+  --core 2 \
+  --pool templates
+
+# import the downloaded disk to the local-lvm storage, attaching it as a SCSI drive
+qm set 9999 --scsi0 local-lvm:0,ssd=1,discard=on,iothread=1,cache=none,import-from=/root/ubuntu-24.04-server-cloudimg-amd64.img
+qm resize 9999 scsi0 +16G
+
+qm set 9999 --cicustom "user=local:snippets/user-data-base-static-ip.mime"
+qm set 9999 --ide2 local-lvm:cloudinit
+qm set 9999 --boot order=scsi0
+qm set 9999 --serial0 socket --vga serial0
+qm set 9999 --ipconfig0 ip=dhcp
+qm start 9999
+qm wait --timeout 360 9999
+qm template 9999
+
+qm shutdown 8888
+qm destroy 8888
+
+# create a new VM with VirtIO SCSI controller
+qm create 8888 --name base-dns-register-dynamic-ip \
+  --tags "base ubuntu dhcp" \
+  --net0 virtio,bridge=vmbr0 \
+  --scsihw virtio-scsi-single \
+  --cpu cputype=host \
+  --agent enabled=1 \
+  --memory 2048 \
+  --core 2 \
+  --pool templates
+
+# import the downloaded disk to the local-lvm storage, attaching it as a SCSI drive
+qm set 8888 --scsi0 local-lvm:0,ssd=1,discard=on,iothread=1,cache=none,import-from=/root/ubuntu-24.04-server-cloudimg-amd64.img
+qm resize 8888 scsi0 +16G
+
+qm set 8888 --cicustom "user=local:snippets/user-data-base-dynamic-ip.mime"
+qm set 8888 --ide2 local-lvm:cloudinit
+qm set 8888 --boot order=scsi0
+qm set 8888 --serial0 socket --vga serial0
+qm set 8888 --ipconfig0 ip=dhcp
+qm start 8888
+qm wait --timeout 360 8888
+qm template 8888

@@ -1,0 +1,7 @@
+include "/etc/bind/ddns-key.conf";
+
+zone "lab" {
+    type master;
+    file "/var/lib/bind/lab.zone";
+    allow-update { key "ddns-key"; };
+};

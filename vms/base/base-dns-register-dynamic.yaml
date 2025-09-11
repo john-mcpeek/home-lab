@@ -1,0 +1,42 @@
+## template: jinja
+#Cloud-config
+merge_how:
+  - name: list
+    settings: [append]
+  - name: dict
+    settings: [no_replace, recurse_list]
+
+packages:
+  - dnsutils
+
+write_files:
+  - path: /etc/ddns-key.conf
+    owner: root:root
+    permissions: '0600'
+    content: |
+      key "ddns-key" {
+        algorithm hmac-sha256;
+        secret "${DDNS_KEY}";
+      };
+  - path: /etc/dhcp/dhclient-exit-hooks.d/ddns-update
+    permissions: '0744'
+    content: |
+      #!/bin/sh
+
+      DNS_SERVER=10.0.0.10
+      ZONE=lab
+      KEYFILE=/etc/ddns-key.conf
+      HOSTNAME=$(hostname)
+      TTL=600
+
+      if [ "$reason" = "BOUND" ] || [ "$reason" = "RENEW" ] || [ "$reason" = "REBIND" ] || [ "$reason" = "REBOOT" ]; then
+        if [ -n "$new_ip_address" ] && [ "$new_ip_address" != "$old_ip_address" ]; then
+          nsupdate -k $KEYFILE << EOF
+      server $DNS_SERVER
+      zone $ZONE
+      update delete $HOSTNAME.$ZONE A
+      update add $HOSTNAME.$ZONE $TTL A $new_ip_address
+      send
+      EOF
+        fi
+      fi

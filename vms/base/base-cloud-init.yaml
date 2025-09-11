@@ -1,0 +1,33 @@
+#Cloud-config
+merge_how:
+  - name: list
+    settings: [append]
+  - name: dict
+    settings: [no_replace, recurse_list]
+
+hostname: static-ip-base-cloud-init
+
+package_update: true
+package_upgrade: true
+package_reboot_if_required: true
+
+users:
+  - default
+  - name: john
+    shell: /bin/bash
+    sudo:  "ALL=(ALL) NOPASSWD:ALL"
+    ssh_authorized_keys:
+      - ${MY_PUBLIC_KEY}
+      - ${PROXMOX_ROOT_PUBLIC_KEY}
+
+packages:
+  - apt-transport-https
+  - ca-certificates
+  - qemu-guest-agent
+
+runcmd:
+  - echo "alias ip='ip --color'" >> /etc/bash.bashrc
+  - echo "alias l='ls -alh --color'" >> /etc/bash.bashrc
+
+  - systemctl start --now qemu-guest-agent
+

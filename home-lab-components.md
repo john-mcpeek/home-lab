@@ -1,0 +1,16 @@
+All components that will be used in the home lab.
+- HCP Vault
+- Artifactory
+- Proxmox
+- Kubernetes
+  - HA
+- Postgresql
+- Ceph
+  - Ceph S3 Gateway
+  - Ceph RGW Gateway
+- Grafana
+- Prometheus
+- ArgoCD
+- Kiali
+- Thanos
+- SSO

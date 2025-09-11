@@ -1,0 +1,205 @@
+#Cloud-config
+merge_how:
+  - name: list
+    settings: [append]
+  - name: dict
+    settings: [no_replace, recurse_list]
+
+write_files:
+  - path: /var/local/keepalived.conf
+    permissions: '0755'
+    content: |
+      ! /etc/keepalived/keepalived.conf
+      ! Configuration File for keepalived
+      global_defs {
+          router_id LVS_DEVEL
+      }
+      vrrp_script check_apiserver {
+        script "/etc/keepalived/check_apiserver.sh"
+        interval 3
+        weight -2
+        fall 10
+        rise 2
+      }
+      
+      vrrp_instance VI_1 {
+          state ${STATE}
+          interface ${INTERFACE}
+          virtual_router_id ${ROUTER_ID}
+          priority ${PRIORITY}
+          authentication {
+              auth_type PASS
+              auth_pass ${AUTH_PASS}
+          }
+          virtual_ipaddress {
+              ${APISERVER_VIP}
+          }
+          track_script {
+              check_apiserver
+          }
+      }
+  - path: /var/local/check_apiserver.sh
+    permissions: '0755'
+    content: |
+      #!/bin/sh
+      
+      errorExit() {
+          echo "*** $*" 1>&2
+          exit 1
+      }
+      
+      curl -sfk --max-time 2 https://localhost:${APISERVER_DEST_PORT}/healthz -o /dev/null || errorExit "Error GET https://localhost:${APISERVER_DEST_PORT}/healthz"
+  - path: /var/local/keepalived.yaml
+    permissions: '0755'
+    content: |
+      apiVersion: v1
+      kind: Pod
+      metadata:
+        name: keepalived
+        namespace: kube-system
+      spec:
+        containers:
+          - image: osixia/keepalived:2.0.20
+            name: keepalived
+            securityContext:
+              capabilities:
+                add:
+                  - NET_ADMIN
+                  - NET_BROADCAST
+                  - NET_RAW
+            volumeMounts:
+              - mountPath: /usr/local/etc/keepalived/keepalived.conf
+                name: config
+              - mountPath: /etc/keepalived/check_apiserver.sh
+                name: check
+        hostNetwork: true
+        volumes:
+          - hostPath:
+              path: /etc/keepalived/keepalived.conf
+            name: config
+          - hostPath:
+              path: /etc/keepalived/check_apiserver.sh
+            name: check
+  - path: /var/local/haproxy.cfg
+    permissions: '0755'
+    content: |
+      # /etc/haproxy/haproxy.cfg
+      #---------------------------------------------------------------------
+      # Global settings
+      #---------------------------------------------------------------------
+      global
+          log stdout format raw local0
+          daemon
+      
+      #---------------------------------------------------------------------
+      # common defaults that all the 'listen' and 'backend' sections will
+      # use if not designated in their block
+      #---------------------------------------------------------------------
+      defaults
+          mode                    http
+          log                     global
+          option                  httplog
+          option                  dontlognull
+          option http-server-close
+          option forwardfor       except 127.0.0.0/8
+          option                  redispatch
+          retries                 1
+          timeout http-request    10s
+          timeout queue           20s
+          timeout connect         5s
+          timeout client          35s
+          timeout server          35s
+          timeout http-keep-alive 10s
+          timeout check           10s
+      
+      #---------------------------------------------------------------------
+      # apiserver frontend which proxys to the control plane nodes
+      #---------------------------------------------------------------------
+      frontend apiserver
+          bind *:${APISERVER_DEST_PORT}
+          mode tcp
+          option tcplog
+          default_backend apiserverbackend
+      
+      #---------------------------------------------------------------------
+      # round robin balancing for apiserver
+      #---------------------------------------------------------------------
+      backend apiserverbackend
+          option httpchk
+      
+          http-check connect ssl
+          http-check send meth GET uri /healthz
+          http-check expect status 200
+      
+          mode tcp
+          balance     roundrobin
+          
+          server cp-01-haproxy ${CP_01_IP}:${APISERVER_SRC_PORT} check verify none
+          server cp-02-haproxy ${CP_02_IP}:${APISERVER_SRC_PORT} check verify none
+          server cp-03-haproxy ${CP_03_IP}:${APISERVER_SRC_PORT} check verify none
+  - path: /var/local/haproxy.yaml
+    permissions: '0755'
+    content: |
+      apiVersion: v1
+      kind: Pod
+      metadata:
+        name: haproxy
+        namespace: kube-system
+      spec:
+        containers:
+          - image: haproxy:2.8
+            name: haproxy
+            livenessProbe:
+              failureThreshold: 8
+              httpGet:
+                host: localhost
+                path: /healthz
+                port: ${APISERVER_DEST_PORT}
+                scheme: HTTPS
+            volumeMounts:
+              - mountPath: /usr/local/etc/haproxy/haproxy.cfg
+                name: haproxyconf
+                readOnly: true
+        hostNetwork: true
+        volumes:
+          - name: haproxyconf
+            hostPath:
+              path: /etc/haproxy/haproxy.cfg
+              type: FileOrCreate
+
+
+runcmd:
+  - export STATE=${KEEP_ALIVE_D_STATE} # MASTER|BACKUP
+  - export PRIORITY=${KEEP_ALIVE_D_PRIORITY} # 101|100
+  - export APISERVER_VIP=${KEEP_ALIVE_D_VIP}
+  - export CP_01_IP=${CONTROL_PLANE_1_IP}
+  - export CP_02_IP=${CONTROL_PLANE_2_IP}
+  - export CP_03_IP=${CONTROL_PLANE_3_IP}
+  - export INTERFACE=eth0
+  - export ROUTER_ID=1
+  - export AUTH_PASS=password
+  - export APISERVER_DEST_PORT=8443
+  - export APISERVER_SRC_PORT=6443
+
+  - mkdir -p /etc/keepalived
+  - envsubst < /var/local/keepalived.conf    | tee /etc/keepalived/keepalived.conf
+  - envsubst < /var/local/check_apiserver.sh | tee /etc/keepalived/check_apiserver.sh
+
+  - mkdir -p /etc/haproxy
+  - envsubst < /var/local/haproxy.cfg        | tee /etc/haproxy/haproxy.cfg
+
+  - mkdir -p /etc/kubernetes/manifests
+  - envsubst < /var/local/keepalived.yaml          | tee /etc/kubernetes/manifests/keepalived.yaml
+  - envsubst < /var/local/haproxy.yaml             | tee /etc/kubernetes/manifests/haproxy.yaml
+
+  - export API_SERVER_VIP_ENTRY="$APISERVER_VIP control-plane"
+
+    # Check if the entry already exists in /etc/hosts
+  - if grep -q "^$API_SERVER_VIP_ENTRY$" /etc/hosts; then
+  -   echo "Entry '$API_SERVER_VIP_ENTRY' already exists in /etc/hosts. No changes needed."
+  - else
+  -   echo "Adding '$API_SERVER_VIP_ENTRY' to /etc/hosts..."
+    # Add the entry to /etc/hosts
+  -   echo "$API_SERVER_VIP_ENTRY" | sudo tee -a /etc/hosts > /dev/null
+  -   echo "Entry added successfully."
+  - fi

@@ -1,0 +1,11 @@
+#Cloud-config
+merge_how:
+  - name: list
+    settings: [append]
+  - name: dict
+    settings: [no_replace, recurse_list]
+
+runcmd:
+  - sleep 60
+  - cloud-init clean --logs --machine-id  --configs all
+  - shutdown -h now

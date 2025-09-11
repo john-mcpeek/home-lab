@@ -1,0 +1,56 @@
+## template: jinja
+#Cloud-config
+merge_how:
+  - name: list
+    settings: [append]
+  - name: dict
+    settings: [no_replace, recurse_list]
+
+packages:
+  - dnsutils
+
+write_files:
+  - path: /etc/ddns-key.conf
+    owner: root:root
+    permissions: '0600'
+    content: |
+      key "ddns-key" {
+        algorithm hmac-sha256;
+        secret "${DDNS_KEY}";
+      };
+  - path: /usr/local/bin/register-dns.sh
+    permissions: '0744'
+    content: |
+      #!/bin/bash
+
+      DNS_SERVER=10.0.0.10
+      ZONE=lab
+      KEYFILE=/etc/ddns-key.conf
+      HOSTNAME=$(hostname)
+      TTL=600
+      INTERFACE=eth0
+      IP=$(ip --color=never -4 addr show $INTERFACE | grep -oP -m 1 '(?<=inet\s)\d+(\.\d+){3}')
+
+      nsupdate -k $KEYFILE << EOF
+      server $DNS_SERVER
+      zone $ZONE
+      update delete $HOSTNAME.$ZONE A
+      update add $HOSTNAME.$ZONE $TTL A $IP
+      send
+      EOF
+  - path: /etc/systemd/system/register-dns.service
+    permissions: '0744'
+    content: |
+      [Unit]
+      Description=Register Static IP in DNS
+      After=network-online.target
+      
+      [Service]
+      ExecStart=/usr/local/bin/register-dns.sh
+      
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - systemctl daemon-reload
+  - systemctl enable --now register-dns
