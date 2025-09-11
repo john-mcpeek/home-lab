@@ -4,10 +4,13 @@ wget -nc -P /root https://cloud-images.ubuntu.com/releases/noble/release/ubuntu-
 qm shutdown 9999
 qm destroy 9999
 
+NODE_IP=$(ip -4 addr show vmbr0 | grep inet | awk '{print $2}' | cut -d'/' -f1)
+export NODE_IP
+
 # create a new VM with VirtIO SCSI controller
 qm create 9999 --name base-dns-register-static-ip \
   --tags "base ubuntu static-ip" \
-  --nameserver "10.0.0.10 75.75.75.75" \
+  --nameserver "${NODE_IP} 75.75.75.75" \
   --net0 virtio,bridge=vmbr0 \
   --scsihw virtio-scsi-single \
   --cpu cputype=host \
@@ -35,6 +38,7 @@ qm destroy 8888
 # create a new VM with VirtIO SCSI controller
 qm create 8888 --name base-dns-register-dynamic-ip \
   --tags "base ubuntu dhcp" \
+  --nameserver "${NODE_IP} 75.75.75.75" \
   --net0 virtio,bridge=vmbr0 \
   --scsihw virtio-scsi-single \
   --cpu cputype=host \

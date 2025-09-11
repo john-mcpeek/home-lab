@@ -22,8 +22,11 @@ function dns_setup() {
   # Output the extracted key
   echo "DDNS_KEY: $DDNS_KEY"
 
-  envsubst '${DDNS_KEY}' < base/base-dns-register-dynamic.yaml | tee generated/base-dns-register-dynamic.yaml > /dev/null
-  envsubst '${DDNS_KEY}' < base/base-dns-register-static-ip.yaml | tee generated/base-dns-register-static-ip.yaml > /dev/null
+  NODE_IP=$(ip -4 addr show vmbr0 | grep inet | awk '{print $2}' | cut -d'/' -f1)
+  export NODE_IP
+
+  envsubst '${DDNS_KEY} ${NODE_IP}' < base/base-dns-register-dynamic.yaml | tee generated/base-dns-register-dynamic.yaml > /dev/null
+  envsubst '${DDNS_KEY} ${NODE_IP}' < base/base-dns-register-static-ip.yaml | tee generated/base-dns-register-static-ip.yaml > /dev/null
 }
 
 function update_keys() {

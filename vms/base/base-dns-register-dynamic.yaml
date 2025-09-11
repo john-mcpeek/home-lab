@@ -23,7 +23,7 @@ write_files:
     content: |
       #!/bin/sh
 
-      DNS_SERVER=10.0.0.10
+      DNS_SERVER=${NODE_IP}
       ZONE=lab
       KEYFILE=/etc/ddns-key.conf
       HOSTNAME=$(hostname)

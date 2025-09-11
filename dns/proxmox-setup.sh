@@ -194,10 +194,10 @@ create_pool $NODE_IP $PASSWORD prod
 create_pool $NODE_IP $PASSWORD templates
 proxmox_miscellany
 
-#########################################################
+########################################################################################
 # NOTE: Proxmox is free garbage. Some stuff doesn't work.
 # Datacenter -> Tag Style Override -> edit -> Tree Shape: Full, Ordering: Configuration
-#########################################################
+#######################################################################################
 # Error: Failed to update tag style: Method 'POST /cluster/options' not implemented
 # Full response: {"message":"Method 'POST /cluster/options' not implemented","data":null}
 #update_tag_style $NODE_IP $PASSWORD
