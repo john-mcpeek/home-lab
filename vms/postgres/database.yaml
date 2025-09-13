@@ -22,11 +22,6 @@ apt:
 packages:
   - postgresql
   - postgresql-contrib
-  - curl
-  - gnupg
-  - lsb-release
-  - xfsprogs
-  - e2fsprogs
 
 users:
   - default
@@ -62,161 +57,43 @@ write_files:
       vm.max_map_count = 262144
       net.core.somaxconn = 1024
       fs.inotify.max_user_watches = 524288
-  - path: /usr/local/sbin/enable_pg_remote.sh
+  - path: /tmp/configure_postgres.sh
     permissions: "0755"
     owner: root:root
     content: |
       #!/usr/bin/env bash
       set -euo pipefail
+      
+      # Determine PostgreSQL version
+      PG_VERSION=$(ls /etc/postgresql/ | head -1)
+      PG_CONF="/etc/postgresql/${PG_VERSION}/main/postgresql.conf"
+      PG_HBA="/etc/postgresql/${PG_VERSION}/main/pg_hba.conf"
+      
+      # Configure listen_addresses to all interfaces
+      sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" "${PG_CONF}"
+      
+      # Set password_encryption to scram-sha-256
+      sed -i "s/#password_encryption = md5/password_encryption = scram-sha-256/" "${PG_CONF}"
 
-      PGVER=16
-      PORT=5432
-      LAN_CIDR="10.0.0.0/24"       # <<< change to your LAN
-      SERVER_IP="*"                # or set to VM's IP (e.g., "10.0.0.20")
+      # Allow connections from any IP with MD5 password authentication
+      # WARNING: This is insecure for production; restrict to specific IPs as needed
+      echo "host    all             all             10.0.0.0/24               scram-sha-256" >> "${PG_HBA}"
 
-      PGCONF="/etc/postgresql/${PGVER}/main/postgresql.conf"
-      PGHBA="/etc/postgresql/${PGVER}/main/pg_hba.conf"
-
-      # Ensure Postgres is installed (no-op if already present)
-      if ! dpkg -s postgresql-${PGVER} >/dev/null 2>&1; then
-        apt-get update
-        apt-get install -y curl gnupg lsb-release postgresql-${PGVER} postgresql-client-${PGVER}
-      fi
-
-      echo "if grep listen_addresses"
-      # Listen on SERVER_IP (default '*') and set password_encryption to scram-sha-256
-      grep -q "^listen_addresses" "$PGCONF" && \
-        sed -i "s/^listen_addresses.*/listen_addresses = '${SERVER_IP}//'/'\\/' '/" "$PGCONF" || \
-        echo "listen_addresses = '${SERVER_IP}'" >> "$PGCONF"
-
-      echo "if grep port"
-      grep -q "^port" "$PGCONF" && \
-        sed -i "s/^port.*/port = ${PORT}/" "$PGCONF" || \
-        echo "port = ${PORT}" >> "$PGCONF"
-
-      echo "if grep password_encryption"
-      if grep -q "^#\?password_encryption" "$PGCONF"; then
-        sed -i "s/^#\?password_encryption.*/password_encryption = scram-sha-256/" "$PGCONF"
-      else
-        echo "password_encryption = scram-sha-256" >> "$PGCONF"
-      fi
-
-      # Allow LAN access via pg_hba.conf (scram is better than md5)
-      echo "PGHBA $PGHBA"
-      RULE="host    all    all    ${LAN_CIDR}    scram-sha-256"
-      echo "RULE $RULE"
-      grep -qF "$RULE" "$PGHBA" || echo "$RULE" >> "$PGHBA"
-      echo "grep -------"
-
-      # UFW: allow only from LAN to the Postgres port
-      ufw allow from ${LAN_CIDR} to any port ${PORT} proto tcp || true
-      ufw --force enable || true
-
+      # Restart PostgreSQL
       systemctl restart postgresql
-  - path: /usr/local/sbin/provision_postgres.sh
-    owner: root:root
-    permissions: '0755'
-    content: |
-      #!/usr/bin/env bash
-      set -euo pipefail
-      
-      # Base dirs
-      PGVER=16
-      PGDATA_MNT=/var/lib/postgresql/${PGVER}
-      PGWAL_MNT=/var/lib/postgresql/wal
-      PGCONF=/etc/postgresql/${PGVER}/main/postgresql.conf
-      PGSVC=postgresql@${PGVER}-main
-      
-      echo "Dropping default cluster"
-      systemctl stop postgresql || true
-      pg_dropcluster --stop ${PGVER} main || true
-      echo "Default cluster dropped"
-      
-      # Format and mount /dev/sdb for PGDATA_MNT
-      if lsblk -dn -o NAME | grep -q '^sdb$'; then
-        if ! lsblk -f | grep -q '^sdb[0-9]'; then
-          echo "formatting sdb*"
-          parted -s /dev/sdb mklabel gpt mkpart primary 0% 100%
-          partprobe /dev/sdb
-          udevadm settle # wait for /dev/sdX to appear
-          mkfs.ext4 -L PGDATA -E lazy_itable_init=0,lazy_journal_init=0 /dev/sdb1
-          echo "formatting sdb* completed"
-        fi
-        mkdir -p "${PGDATA_MNT}/main"
-        if ! grep -q 'PGDATA' /etc/fstab; then
-          echo "Adding PGDATA to fstab"
-          echo 'LABEL=PGDATA  '"${PGDATA_MNT}"'  ext4  defaults,noatime,nodiratime,commit=100  0 2' >> /etc/fstab
-        fi
-        systemctl daemon-reload  # let systemd notice new fstab entries
-        mount -a                 # actually mount it now
-        echo "PGDATA - mount -a completed"
-        chown -R postgres:postgres "${PGDATA_MNT}"
+
+      # Enable UFW if present and allow PostgreSQL port
+      if command -v ufw >/dev/null 2>&1; then
+        ufw allow 5432/tcp
       fi
       
-      # Format and mount /dev/sdc for WAL
-      if lsblk -dn -o NAME | grep -q '^sdc$'; then
-        if ! lsblk -f | grep -q '^sdc[0-9]'; then
-          echo "formatting sdc*"
-          parted -s /dev/sdc mklabel gpt mkpart primary 0% 100%
-          partprobe /dev/sdc
-          udevadm settle # wait for /dev/sdX to appear
-          mkfs.ext4 -L PGWAL -E lazy_itable_init=0,lazy_journal_init=0 /dev/sdc1
-          echo "formatting sdc* completed"
-        fi
-        mkdir -p "${PGWAL_MNT}"
-        if ! grep -q 'PGWAL' /etc/fstab; then
-          echo "Adding PGWAL to fstab"
-          echo 'LABEL=PGWAL  '"${PGWAL_MNT}"'  ext4  defaults,noatime,nodiratime,commit=100  0 2' >> /etc/fstab
-        fi
-        systemctl daemon-reload # let systemd notice new fstab entries
-        mount -a                # actually mount it now
-        echo "PGWAL - mount -a completed"
-        chown -R postgres:postgres "${PGWAL_MNT}"
-      fi
-      
-      # Drop default cluster and re-create with PGDATA_MNT on new disk
-      echo "re-create cluster with PGDATA_MNT on new disk"
-      if [ ! -f "${PGDATA_MNT}/main/PG_VERSION" ]; then
-        echo "PGDATA_MNT is empty, creating new cluster"
-        pg_createcluster --start -e UTF-8 ${PGVER} main -- --data-checksums -D "${PGDATA_MNT}/main"
-        systemctl stop postgresql
-        echo "default cluster re-created with PGDATA_MNT on new disk"
-      fi
-      
-      # Symlink pg_wal → WAL disk
-      if mountpoint -q "${PGWAL_MNT}"; then
-        echo "Setting up symlink for pg_wal"
-        mkdir -p "${PGWAL_MNT}/pg_wal"
-        rsync -a --delete "${PGDATA_MNT}/main/pg_wal/" "${PGWAL_MNT}/pg_wal/" || true
-        rm -rf "${PGDATA_MNT}/main/pg_wal"
-        ln -s "${PGWAL_MNT}/pg_wal" "${PGDATA_MNT}/main/pg_wal"
-        chown -R postgres:postgres "${PGWAL_MNT}"
-      fi
-      
-      # Postgres config tuning for 16GB/4 vCPU
-      echo "Postgres config tuning for 16GB/4 vCPU"
-      sed -i 's/^#?shared_buffers./shared_buffers = 4GB/' "${PGCONF}"
-      sed -i 's/^#?work_mem./work_mem = 32MB/' "${PGCONF}"
-      sed -i 's/^#?effective_cache_size./effective_cache_size = 12GB/' "${PGCONF}"
-      sed -i 's/^#?max_wal_size./max_wal_size = 2GB/' "${PGCONF}"
-      sed -i 's/^#?wal_compression./wal_compression = on/' "${PGCONF}"
-      sed -i 's/^#?random_page_cost./random_page_cost = 1.1/' "${PGCONF}"
-      sed -i 's/^#?maintenance_work_mem.*/maintenance_work_mem = 1GB/' "${PGCONF}"
-      
-      # Make sure ownership/permissions are correct
-      echo "Make sure ownership/permissions are correct"
-      chown -R postgres:postgres /var/lib/postgresql      
-      systemctl daemon-reload
-      systemd-tmpfiles --create
-      sysctl --system
-      echo "sysctl --system completed"
-      systemctl enable postgresql
-      systemctl start postgresql
-      systemctl --no-pager status ${PGSVC} || true
+      # Optional: Create user and database with SCRAM-SHA-256 password
+      sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD '${POSTGRES_PASSWORD}';"
+      # sudo -u postgres psql -c "CREATE USER myuser WITH PASSWORD 'mypassword';"
+      # sudo -u postgres psql -c "CREATE DATABASE mydb OWNER myuser;"
 
 runcmd:
   - systemd-tmpfiles --create /etc/tmpfiles.d/disable-thp.conf
-#  - /usr/local/sbin/provision_postgres.sh
-  - /usr/local/sbin/enable_pg_remote.sh
+  - /tmp/configure_postgres.sh
 
 

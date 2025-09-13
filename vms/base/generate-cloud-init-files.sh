@@ -50,6 +50,7 @@ function dhcp_ip_register() {
 }
 
 export MY_PUBLIC_KEY=$1
+
 PROXMOX_ROOT_PUBLIC_KEY=$(cat /root/.ssh/id_rsa.pub)
 export PROXMOX_ROOT_PUBLIC_KEY
 
