@@ -1,4 +1,13 @@
 #!/usr/bin/env bash
+set -euo pipefail
+
+# Check if no arguments are provided
+if [ $# -eq 0 ]; then
+    echo "Usage: $0 PROXMOX_IP POSTGRES_PASSWORD"
+    echo "Description: This script requires at least two argument to proceed."
+    echo "Example: $0 10.0.0.10 password"
+    exit 1
+fi
 
 export PROXMOX_IP=$1
 export PROXMOX_PASSWORD=$2
@@ -13,5 +22,5 @@ scp -r dns/ vms/ "root@${PROXMOX_IP}":~/
 ssh "root@${PROXMOX_IP}" "cd dns && ./proxmox-setup.sh ${PROXMOX_PASSWORD}"
 
 # Setup Base VMs
-ssh "root@${PROXMOX_IP}" "cd vms && ./base/generate-cloud-init-files.sh '$MY_PUBLIC_KEY'"
-ssh "root@${PROXMOX_IP}" "cd vms && ./base/build-base-templates.sh"
+#ssh "root@${PROXMOX_IP}" "cd vms && ./base/generate-cloud-init-files.sh '$MY_PUBLIC_KEY'"
+#ssh "root@${PROXMOX_IP}" "cd vms && ./base/build-base-templates.sh"

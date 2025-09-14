@@ -15,6 +15,8 @@ export POSTGRES_PASSWORD=$2
 MY_PUBLIC_KEY=$(cat ~/.ssh/id_ed25519.pub)
 export MY_PUBLIC_KEY
 
+ssh "root@${PROXMOX_IP}" "rm -rf vms/postgres/*"
+
 scp -r postgres/ "root@${PROXMOX_IP}":~/vms
 
 ssh "root@${PROXMOX_IP}" "cd vms && ./postgres/generate-cloud-init-files.sh '${MY_PUBLIC_KEY}' ${POSTGRES_PASSWORD}"

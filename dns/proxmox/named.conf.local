@@ -1,7 +1,17 @@
-include "/etc/bind/ddns-key.conf";
+// TSIG key used by clients (VMs) for dynamic updates
+include "/etc/bind/keys/ddns.key";
 
+// Authoritative forward zone for lab.
 zone "lab" {
     type master;
-    file "/var/lib/bind/lab.zone";
+    file "/etc/bind/zones/db.lab";
+    // Allow secure dynamic updates (A/AAAA) from clients that hold ddns-key
+    allow-update { key "ddns-key"; };
+};
+
+// Authoritative reverse zone for 10.0.0.0/24 (optional but recommended)
+zone "0.0.10.in-addr.arpa" {
+    type master;
+    file "/etc/bind/zones/db.10.0.0";
     allow-update { key "ddns-key"; };
 };

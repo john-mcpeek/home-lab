@@ -1,9 +1,22 @@
 options {
     directory "/var/cache/bind";
+
+    // Listen everywhere on this box
+    listen-on { any; };
+    listen-on-v6 { any; };
+
+    // Only your LAN and localhost may query recursively
+    allow-query { localhost; 10.0.0.0/24; };
     recursion yes;
-    allow-query { any; };  // Restrict to your subnet if preferred, e.g., 192.168.1.0/24;
+    allow-recursion { localhost; 10.0.0.0/24; };
+
+    // Upstream resolvers for anything outside lab.
     forwarders {
         1.1.1.1;
-        8.8.8.8;
+        9.9.9.9;
     };
+
+    dnssec-validation auto;
+    auth-nxdomain no;
+    minimal-responses yes;
 };

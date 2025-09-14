@@ -1,0 +1,12 @@
+$TTL 300
+@   IN  SOA  pve.lab. root.lab. (
+        2025091401
+        3600
+        1800
+        604800
+        300 )
+
+    IN  NS   pve.lab.
+
+; PTR for the host itself (10.0.0.10 -> pve.lab.)
+10  IN  PTR  pve.lab.

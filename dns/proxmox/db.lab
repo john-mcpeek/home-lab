@@ -1,0 +1,12 @@
+$TTL 300
+@   IN  SOA  pve.lab. root.lab. (
+        2025091401 ; Serial: YYYYMMDDnn (bump on manual edits)
+        3600       ; Refresh
+        1800       ; Retry
+        604800     ; Expire
+        300 )      ; Negative cache TTL
+
+    IN  NS   pve.lab.
+
+; Glue for the NS above
+pve IN  A    10.0.0.10

@@ -12,6 +12,7 @@ function dns_setup() {
 
   # Extract the DDNS_KEY value using grep and sed
   DDNS_KEY=$(grep 'secret' "$CONFIG_FILE" | sed -n 's/.*secret "\(.*\)";/\1/p')
+  export DDNS_KEY
 
   # Check if DDNS_KEY was found
   if [[ -z "$DDNS_KEY" ]]; then
@@ -47,6 +48,14 @@ function dhcp_ip_register() {
     -a generated/base-dns-register-dynamic.yaml:cloud-config \
     -a base/base-shut-down.yaml:cloud-config \
     > generated/user-data-base-dynamic-ip.mime
+}
+
+function dns_self_register() {
+  cloud-init devel make-mime \
+    -a generated/base-cloud-init.yaml:cloud-config \
+    -a generated/base-dns-self-register.yaml:cloud-config \
+    -a base/base-shut-down.yaml:cloud-config \
+    > generated/user-data-base-dns-self-register.mime
 }
 
 export MY_PUBLIC_KEY=$1

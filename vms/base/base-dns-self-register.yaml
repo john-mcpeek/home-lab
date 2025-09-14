@@ -1,0 +1,116 @@
+#Cloud-config
+merge_how:
+  - name: list
+    settings: [ append ]
+  - name: dict
+    settings: [ no_replace, recurse_list ]
+
+packages:
+  - dnsutils
+
+write_files:
+  - path: /etc/ddns-key.conf
+    owner: root:root
+    permissions: '0640'
+    content: |
+      key "ddns-key" {
+        algorithm hmac-sha256;
+        secret "${DDNS_KEY}";
+      };
+
+  # Registration script (IPv4 + IPv6 aware). Re-runs safely on every boot.
+  - path: /usr/local/sbin/ddns-register.sh
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      DDNS_SERVER="10.0.0.10"   # Proxmox/BIND server
+      DDNS_PORT="53"
+      DDNS_DOMAIN="lab"
+      KEYFILE="/etc/ddns-key.conf"
+
+      # Prefer the static hostname set by cloud-init
+      HOST_SHORT="$(hostnamectl --static)"
+      # If a FQDN already includes the domain, keep it; otherwise append
+      if hostname -f >/dev/null 2>&1; then
+        HOST_FQDN="$(hostname -f)"
+      else
+        HOST_FQDN="${HOST_SHORT}.${DDNS_DOMAIN}"
+      fi
+      case "$HOST_FQDN" in
+        *."${DDNS_DOMAIN}") : ;;
+        *) HOST_FQDN="${HOST_SHORT}.${DDNS_DOMAIN}" ;;
+      esac
+
+      # Primary IPv4 & IPv6 from global, UP interfaces
+      IP4="$(ip -4 addr show scope global up | awk '/inet /{print $2}' | cut -d/ -f1 | head -n1 || true)"
+      IP6="$(ip -6 addr show scope global dynamic,global up | awk '/inet6 /{print $2}' | cut -d/ -f1 | head -n1 || true)"
+
+      # Build nsupdate commands (A/AAAA). We always delete old first (idempotent).
+      NSCMDS=$(mktemp)
+      {
+        echo "server ${DDNS_SERVER} ${DDNS_PORT}"
+        echo "zone ${DDNS_DOMAIN}."
+        if [[ -n "${IP4}" ]]; then
+          echo "update delete ${HOST_FQDN}. A"
+          echo "update add ${HOST_FQDN}. 300 A ${IP4}"
+        fi
+        if [[ -n "${IP6}" ]]; then
+          echo "update delete ${HOST_FQDN}. AAAA"
+          echo "update add ${HOST_FQDN}. 300 AAAA ${IP6}"
+        fi
+        echo "send"
+      } > "${NSCMDS}"
+
+      # Perform the update (only if we have at least one address)
+      if [[ -s "${NSCMDS}" ]]; then
+        nsupdate -k "${KEYFILE}" "${NSCMDS}" || exit 1
+      fi
+      rm -f "${NSCMDS}"
+
+      # OPTIONAL: PTR updates require reverse zones allowing updates by this key.
+      # If you’ve configured reverse zones in BIND, uncomment below.
+      # function rev4() { IFS=. read -r a b c d <<<"$1"; echo "${d}.${c}.${b}.${a}.in-addr.arpa."; }
+      # function rev6() { # very basic nibble format
+      #   python3 - <<PY
+      #ip6="$1".lower()
+      #ip6_expanded=":".join([h.zfill(4) for h in ip6.split(":")])
+      #nibbles=".".join(list(ip6_expanded.replace(":", "")))[::-1].replace("",".").strip(".")
+      #print(f"{nibbles}.ip6.arpa.")
+      #PY
+      # }
+      # if [[ -n "${IP4:-}" ]]; then
+      #   RZ4="$(rev4 "${IP4}")"
+      #   nsupdate -k "${KEYFILE}" <<EOF || true
+      #server ${DDNS_SERVER} ${DDNS_PORT}
+      #update delete $(rev4 "${IP4}") PTR
+      #update add $(rev4 "${IP4}") 300 PTR ${HOST_FQDN}.
+      #send
+      #EOF
+      # fi
+
+  # systemd unit to run after the network is actually up
+  - path: /etc/systemd/system/ddns-register.service
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Register this VM's IP in lab DNS (A/AAAA via nsupdate)
+      Wants=network-online.target
+      After=network-online.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/ddns-register.sh
+      # Re-try once if the DNS server wasn't ready yet
+      Restart=on-failure
+      RestartSec=10
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - systemctl daemon-reload
+  - systemctl enable --now ddns-register.service

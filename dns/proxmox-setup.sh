@@ -27,7 +27,7 @@ function update_source_list() {
 function update_packages() {
   apt update
   apt upgrade -y
-  apt install -y bind9 bind9utils dnsutils \
+  apt install -y bind9 bind9-utils dnsutils \
     jq \
     vim \
     cloud-init \
@@ -40,24 +40,35 @@ function configure_lab_dns_zone() {
   # app armor stops bind from coming up, So I switched over to complain.
   aa-complain /usr/sbin/named
 
-  tsig-keygen -a hmac-sha256 ddns-key | tee /etc/bind/ddns-key.conf >/dev/null
-  chown root:bind /etc/bind/ddns-key.conf
-  chmod 640 /etc/bind/ddns-key.conf
+  # Layout for clarity
+  mkdir -p /etc/bind/zones /etc/bind/keys
+  chown -R root:bind /etc/bind/keys
+  chmod 750 /etc/bind/keys
+
+  # Generate a TSIG key for DDNS
+  tsig-keygen -a hmac-sha256 ddns-key | tee /etc/bind/keys/ddns.key >/dev/null
+  chown root:bind /etc/bind/keys/ddns.key
+  chmod 640 /etc/bind/keys/ddns.key
 
   # Apply DNS 'lab' zone config
   cp -f proxmox/named.conf.options /etc/bind/named.conf.options
   cp -f proxmox/named.conf.local /etc/bind/named.conf.local
-  cp -f proxmox/lab.zone /var/lib/bind/lab.zone
+  cp -f proxmox/db.lab /etc/bind/zones/db.lab
+  cp -f proxmox/db.10.0.0 /etc/bind/zones/db.10.0.0
 
-  chown -R bind:bind /var/lib/bind
-  chmod -R 775 /var/lib/bind
-
-  named-checkzone lab /var/lib/bind/lab.zone
   named-checkconf
-  systemctl restart bind9
+  named-checkzone lab /etc/bind/zones/db.lab
+  named-checkzone 0.0.10.in-addr.arpa /etc/bind/zones/db.10.0.0
+
+  systemctl enable --now named
+  systemctl reload named
 
   # Test DNS
-  dig "@${proxmox_ip}" "$(hostname).lab"
+  dig "@${proxmox_ip}" "$(hostname).lab" +short
+#  dig @10.0.0.10 pve.lab +short
+  # expect: 10.0.0.10
+  dig "@${proxmox_ip}" -x "${proxmox_ip}" +short
+  # expect: pve.lab.
 
   cp -f proxmox/resolv.conf /etc/resolv.conf
 }
