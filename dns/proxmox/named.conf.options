@@ -5,10 +5,13 @@ options {
     listen-on { any; };
     listen-on-v6 { any; };
 
-    // Only your LAN and localhost may query recursively
-    allow-query { localhost; 10.0.0.0/24; };
+    // Allow queries from any client (authoritative and non-authoritative)
+    allow-query { any; };
+
+    // Allow access to the cache for any client (enables caching for any domain)
+    allow-query-cache { any; };
     recursion yes;
-    allow-recursion { localhost; 10.0.0.0/24; };
+    allow-recursion { any; };
 
     // Upstream resolvers for anything outside lab.
     forwarders {

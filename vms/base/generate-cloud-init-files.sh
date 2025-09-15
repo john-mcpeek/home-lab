@@ -2,7 +2,7 @@
 
 function dns_setup() {
   # Path to the configuration file
-  CONFIG_FILE="/etc/bind/ddns-key.conf"
+  CONFIG_FILE="/etc/bind/keys/ddns.key"
 
   # Check if the file exists
   if [[ ! -f "$CONFIG_FILE" ]]; then
@@ -25,7 +25,10 @@ function dns_setup() {
 
   NODE_IP=$(ip -4 addr show vmbr0 | grep inet | awk '{print $2}' | cut -d'/' -f1)
   export NODE_IP
+  DDNS_SERVER=$NODE_IP
+  export DDNS_SERVER
 
+  envsubst '${DDNS_KEY} ${DDNS_SERVER}' < base/base-dns-self-register.yaml | tee generated/base-dns-self-register.yaml > /dev/null
   envsubst '${DDNS_KEY} ${NODE_IP}' < base/base-dns-register-dynamic.yaml | tee generated/base-dns-register-dynamic.yaml > /dev/null
   envsubst '${DDNS_KEY} ${NODE_IP}' < base/base-dns-register-static-ip.yaml | tee generated/base-dns-register-static-ip.yaml > /dev/null
 }
@@ -56,6 +59,7 @@ function dns_self_register() {
     -a generated/base-dns-self-register.yaml:cloud-config \
     -a base/base-shut-down.yaml:cloud-config \
     > generated/user-data-base-dns-self-register.mime
+    cloud-init schema --config-file generated/user-data-base-dns-self-register.mime --annotate
 }
 
 export MY_PUBLIC_KEY=$1
@@ -67,6 +71,7 @@ mkdir -p generated
 
 dns_setup
 update_keys
+dns_self_register
 static_ip_register
 dhcp_ip_register
 

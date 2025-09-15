@@ -9,7 +9,7 @@ packages:
   - dnsutils
 
 write_files:
-  - path: /etc/ddns-key.conf
+  - path: /etc/ddns.key
     owner: root:root
     permissions: '0640'
     content: |
@@ -26,10 +26,10 @@ write_files:
       #!/usr/bin/env bash
       set -euo pipefail
 
-      DDNS_SERVER="10.0.0.10"   # Proxmox/BIND server
+      DDNS_SERVER="${DDNS_SERVER}"   # Proxmox/BIND server
       DDNS_PORT="53"
       DDNS_DOMAIN="lab"
-      KEYFILE="/etc/ddns-key.conf"
+      KEYFILE="/etc/ddns.key"
 
       # Prefer the static hostname set by cloud-init
       HOST_SHORT="$(hostnamectl --static)"
@@ -46,7 +46,9 @@ write_files:
 
       # Primary IPv4 & IPv6 from global, UP interfaces
       IP4="$(ip -4 addr show scope global up | awk '/inet /{print $2}' | cut -d/ -f1 | head -n1 || true)"
-      IP6="$(ip -6 addr show scope global dynamic,global up | awk '/inet6 /{print $2}' | cut -d/ -f1 | head -n1 || true)"
+      echo "IP4: ${IP4}"
+      IP6="$(ip -6 addr show eth0 scope global up | awk '/inet6 /{print $2}' | cut -d/ -f1 | head -n1 || true)"
+      echo "IP6: ${IP6}"
 
       # Build nsupdate commands (A/AAAA). We always delete old first (idempotent).
       NSCMDS=$(mktemp)
@@ -66,30 +68,34 @@ write_files:
 
       # Perform the update (only if we have at least one address)
       if [[ -s "${NSCMDS}" ]]; then
-        nsupdate -k "${KEYFILE}" "${NSCMDS}" || exit 1
+        echo "Running nsupdate..."
+        nsupdate -d -v -k "${KEYFILE}" "${NSCMDS}" || exit 1
+        echo "nsupdate complete"
       fi
       rm -f "${NSCMDS}"
-
+      
       # OPTIONAL: PTR updates require reverse zones allowing updates by this key.
       # If you’ve configured reverse zones in BIND, uncomment below.
-      # function rev4() { IFS=. read -r a b c d <<<"$1"; echo "${d}.${c}.${b}.${a}.in-addr.arpa."; }
-      # function rev6() { # very basic nibble format
-      #   python3 - <<PY
-      #ip6="$1".lower()
-      #ip6_expanded=":".join([h.zfill(4) for h in ip6.split(":")])
-      #nibbles=".".join(list(ip6_expanded.replace(":", "")))[::-1].replace("",".").strip(".")
-      #print(f"{nibbles}.ip6.arpa.")
-      #PY
-      # }
-      # if [[ -n "${IP4:-}" ]]; then
-      #   RZ4="$(rev4 "${IP4}")"
-      #   nsupdate -k "${KEYFILE}" <<EOF || true
-      #server ${DDNS_SERVER} ${DDNS_PORT}
-      #update delete $(rev4 "${IP4}") PTR
-      #update add $(rev4 "${IP4}") 300 PTR ${HOST_FQDN}.
-      #send
-      #EOF
-      # fi
+      function rev4() { IFS=. read -r a b c d <<<"$1"; echo "${d}.${c}.${b}.${a}.in-addr.arpa."; }
+      function rev6() { # very basic nibble format
+       python3 - <<PY
+      ip6="$1".lower()
+      ip6_expanded=":".join([h.zfill(4) for h in ip6.split(":")])
+      nibbles=".".join(list(ip6_expanded.replace(":", "")))[::-1].replace("",".").strip(".")
+      print(f"{nibbles}.ip6.arpa.")
+      PY
+      }
+      if [[ -n "${IP4:-}" ]]; then
+        echo "Running reverse dns update..."
+        RZ4="$(rev4 "${IP4}")"
+        nsupdate -k "${KEYFILE}" <<EOF || true
+      server ${DDNS_SERVER} ${DDNS_PORT}
+      update delete $(rev4 "${IP4}") PTR
+      update add $(rev4 "${IP4}") 300 PTR ${HOST_FQDN}.
+      send
+      EOF
+        echo "reverse dns update complete"
+      fi
 
   # systemd unit to run after the network is actually up
   - path: /etc/systemd/system/ddns-register.service

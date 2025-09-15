@@ -44,6 +44,8 @@ function configure_lab_dns_zone() {
   mkdir -p /etc/bind/zones /etc/bind/keys
   chown -R root:bind /etc/bind/keys
   chmod 750 /etc/bind/keys
+  chown -R bind:bind /etc/bind/zones
+  chmod 775 /var/lib/bind
 
   # Generate a TSIG key for DDNS
   tsig-keygen -a hmac-sha256 ddns-key | tee /etc/bind/keys/ddns.key >/dev/null

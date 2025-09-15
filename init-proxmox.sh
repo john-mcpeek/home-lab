@@ -22,5 +22,5 @@ scp -r dns/ vms/ "root@${PROXMOX_IP}":~/
 ssh "root@${PROXMOX_IP}" "cd dns && ./proxmox-setup.sh ${PROXMOX_PASSWORD}"
 
 # Setup Base VMs
-#ssh "root@${PROXMOX_IP}" "cd vms && ./base/generate-cloud-init-files.sh '$MY_PUBLIC_KEY'"
-#ssh "root@${PROXMOX_IP}" "cd vms && ./base/build-base-templates.sh"
+ssh "root@${PROXMOX_IP}" "cd vms && ./base/generate-cloud-init-files.sh '$MY_PUBLIC_KEY'"
+ssh "root@${PROXMOX_IP}" "cd vms && ./base/build-base-templates.sh"
