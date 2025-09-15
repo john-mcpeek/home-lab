@@ -37,22 +37,6 @@ function update_keys() {
   envsubst '${MY_PUBLIC_KEY} ${PROXMOX_ROOT_PUBLIC_KEY}' < base/base-cloud-init.yaml | tee generated/base-cloud-init.yaml > /dev/null
 }
 
-function static_ip_register() {
-  cloud-init devel make-mime \
-    -a generated/base-cloud-init.yaml:cloud-config \
-    -a generated/base-dns-register-static-ip.yaml:cloud-config \
-    -a base/base-shut-down.yaml:cloud-config \
-    > generated/user-data-base-static-ip.mime
-}
-
-function dhcp_ip_register() {
-  cloud-init devel make-mime \
-    -a generated/base-cloud-init.yaml:cloud-config \
-    -a generated/base-dns-register-dynamic.yaml:cloud-config \
-    -a base/base-shut-down.yaml:cloud-config \
-    > generated/user-data-base-dynamic-ip.mime
-}
-
 function dns_self_register() {
   cloud-init devel make-mime \
     -a generated/base-cloud-init.yaml:cloud-config \
@@ -72,8 +56,6 @@ mkdir -p generated
 dns_setup
 update_keys
 dns_self_register
-static_ip_register
-dhcp_ip_register
 
 # Copy generated cloud-init files to snippets.
 cp -f generated/*.mime /var/lib/vz/snippets/

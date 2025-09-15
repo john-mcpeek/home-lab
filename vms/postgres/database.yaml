@@ -5,7 +5,7 @@ merge_how:
   - name: dict
     settings: [ no_replace, recurse_list ]
 
-hostname: postgres
+hostname: ${NODE_HOST_NAME}
 
 package_update: true
 package_upgrade: true
@@ -25,13 +25,6 @@ packages:
   - ufw
 
 users:
-  - default
-  - name: john
-    shell: /bin/bash
-    sudo: "ALL=(ALL) NOPASSWD:ALL"
-    ssh_authorized_keys:
-      - ${MY_PUBLIC_KEY}
-      - ${PROXMOX_ROOT_PUBLIC_KEY}
   - name: postgres
     gecos: PostgreSQL Admin
     groups: sudo
@@ -48,6 +41,7 @@ write_files:
     content: |
       w /sys/kernel/mm/transparent_hugepage/enabled - - - - never
       w /sys/kernel/mm/transparent_hugepage/defrag - - - - never
+
   - path: /etc/sysctl.d/99-postgres.conf
     owner: root:root
     permissions: '0644'
@@ -61,6 +55,7 @@ write_files:
       kernel.shmmax = 134217728  # 128 MB
       kernel.shmall = 32768      # 128 MB / 4 KB
       kernel.shmmni = 4096
+
   - path: /usr/local/sbin/provision_postgres.sh
     permissions: "0755"
     owner: root:root

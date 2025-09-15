@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 function build_postgres_vm_config() {
-    local NODE_HOST_NAME=$1
+    export NODE_HOST_NAME=$1
 
     envsubst '${NODE_HOST_NAME} ${POSTGRES_PASSWORD} ${MY_PUBLIC_KEY} ${PROXMOX_ROOT_PUBLIC_KEY}' < postgres/database.yaml | tee generated/database-${NODE_HOST_NAME}.yaml > /dev/null
 

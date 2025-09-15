@@ -5,20 +5,11 @@ merge_how:
   - name: dict
     settings: [ no_replace, recurse_list ]
 
-hostname: blank
+hostname: ${NODE_HOST_NAME}
 
 package_update: true
 package_upgrade: true
 package_reboot_if_required: true
-
-users:
-  - default
-  - name: john
-    shell: /bin/bash
-    sudo: "ALL=(ALL) NOPASSWD:ALL"
-    ssh_authorized_keys:
-      - ${MY_PUBLIC_KEY}
-      - ${PROXMOX_ROOT_PUBLIC_KEY}
 
 runcmd:
   - echo "Blank Ubuntu cloud init complete"
