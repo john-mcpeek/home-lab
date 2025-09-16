@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
 function build_postgres_vm_config() {
-    export NODE_HOST_NAME=$1
+    export HOST_NAME=$1
 
-    envsubst '${NODE_HOST_NAME} ${MY_PUBLIC_KEY} ${PROXMOX_ROOT_PUBLIC_KEY}' < blank/blank.yaml | tee generated/${NODE_HOST_NAME}.yaml > /dev/null
+    envsubst '${OST_NAME} ${MY_PUBLIC_KEY} ${PROXMOX_ROOT_PUBLIC_KEY}' < blank/blank.yaml | tee generated/${HOST_NAME}.yaml > /dev/null
 
     cloud-init devel make-mime \
-     -a generated/${NODE_HOST_NAME}.yaml:cloud-config \
-     > generated/user-data-${NODE_HOST_NAME}.mime
+     -a generated/${HOST_NAME}.yaml:cloud-config \
+     > generated/user-data-${HOST_NAME}.mime
 }
 
 export MY_PUBLIC_KEY=$1

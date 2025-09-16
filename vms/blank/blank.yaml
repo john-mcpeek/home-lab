@@ -5,7 +5,7 @@ merge_how:
   - name: dict
     settings: [ no_replace, recurse_list ]
 
-hostname: ${NODE_HOST_NAME}
+hostname: ${HOST_NAME}
 
 package_update: true
 package_upgrade: true

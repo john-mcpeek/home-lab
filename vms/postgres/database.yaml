@@ -5,19 +5,11 @@ merge_how:
   - name: dict
     settings: [ no_replace, recurse_list ]
 
-hostname: ${NODE_HOST_NAME}
+hostname: ${HOST_NAME}
 
 package_update: true
 package_upgrade: true
 package_reboot_if_required: true
-
-#apt:
-#  preserve_sources_list: true
-#  sources:
-#    postgresql:
-#      source: deb http://apt.postgresql.org/pub/repos/apt/ $RELEASE-pgdg main
-#      keyid: ACCC4CF8
-#      keyserver: keyserver.ubuntu.com
 
 packages:
   - postgresql
@@ -27,12 +19,9 @@ packages:
 users:
   - name: postgres
     gecos: PostgreSQL Admin
-    groups: sudo
+    groups: postgres
     shell: /bin/bash
     lock_passwd: true
-    ssh_authorized_keys:
-      - ${MY_PUBLIC_KEY}
-      - ${PROXMOX_ROOT_PUBLIC_KEY}
 
 write_files:
   - path: /etc/tmpfiles.d/disable-thp.conf
