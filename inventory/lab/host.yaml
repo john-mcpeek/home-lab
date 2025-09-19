@@ -1,0 +1,69 @@
+all:
+  hosts:
+    k8s-ctrl-01:
+      ansible_host: 10.0.0.141
+      ip: 10.0.0.141
+      tags: k8s control-plane
+      environment: dev
+      cores: 3
+      memory: 4096
+    k8s-ctrl-02:
+      ansible_host: 10.0.0.142
+      ip: 10.0.0.142
+      tags: k8s control-plane
+      environment: dev
+      cores: 3
+      memory: 4096
+    k8s-ctrl-03:
+      ansible_host: 10.0.0.143
+      ip: 10.0.0.143
+      tags: k8s control-plane
+      environment: dev
+      cores: 3
+      memory: 4096
+    k8s-wkr-01:
+      ansible_host: 10.0.0.151
+      ip: 10.0.0.151
+      tags: k8s worker
+      environment: dev
+      cores: 4
+      memory: 8192
+    k8s-wkr-02:
+      ansible_host: 10.0.0.152
+      ip: 10.0.0.152
+      tags: k8s worker
+      environment: dev
+      cores: 4
+      memory: 8192
+    k8s-wkr-03:
+      ansible_host: 10.0.0.153
+      ip: 10.0.0.153
+      tags: k8s worker
+      environment: dev
+      cores: 4
+      memory: 8192
+    k8s-wkr-04:
+      ansible_host: 10.0.0.154
+      ip: 10.0.0.154
+      tags: k8s worker
+      environment: dev
+      cores: 4
+      memory: 8192
+  children:
+    kube_control_plane:
+      hosts:
+        k8s-ctrl-01: {}
+        k8s-ctrl-02: {}
+        k8s-ctrl-03: {}
+    kube_node:
+      hosts:
+        k8s-wkr-01: {}
+        k8s-wkr-02: {}
+        k8s-wkr-03: {}
+    etcd:
+      hosts:
+        k8s-ctrl-01: {}
+        k8s-ctrl-02: {}
+        k8s-ctrl-03: {}
+  vars:
+    ansible_user: ansible

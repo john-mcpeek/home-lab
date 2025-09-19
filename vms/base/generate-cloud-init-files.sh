@@ -34,7 +34,7 @@ function dns_setup() {
 }
 
 function update_keys() {
-  envsubst '${MY_PUBLIC_KEY} ${PROXMOX_ROOT_PUBLIC_KEY}' < base/base-cloud-init.yaml | tee generated/base-cloud-init.yaml > /dev/null
+  envsubst '${MY_PUBLIC_KEY} ${ANSIBLE_PUBLIC_KEY} ${PROXMOX_ROOT_PUBLIC_KEY}' < base/base-cloud-init.yaml | tee generated/base-cloud-init.yaml > /dev/null
 }
 
 function dns_self_register() {
@@ -47,6 +47,7 @@ function dns_self_register() {
 }
 
 export MY_PUBLIC_KEY=$1
+export ANSIBLE_PUBLIC_KEY=$2
 
 PROXMOX_ROOT_PUBLIC_KEY=$(cat /root/.ssh/id_rsa.pub)
 export PROXMOX_ROOT_PUBLIC_KEY

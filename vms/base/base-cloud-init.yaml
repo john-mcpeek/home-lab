@@ -13,6 +13,11 @@ package_reboot_if_required: true
 
 users:
   - default
+  - name: ansible
+    shell: /bin/bash
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    ssh_authorized_keys:
+      - ${ANSIBLE_PUBLIC_KEY}
   - name: john
     shell: /bin/bash
     sudo: "ALL=(ALL) NOPASSWD:ALL"

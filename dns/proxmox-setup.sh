@@ -30,8 +30,11 @@ function update_packages() {
   apt install -y bind9 bind9-utils dnsutils \
     jq \
     vim \
+    snapd \
     cloud-init \
     apparmor-utils
+
+  snap install yq
 }
 
 function configure_lab_dns_zone() {
