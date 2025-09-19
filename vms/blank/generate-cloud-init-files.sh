@@ -3,7 +3,7 @@
 function build_postgres_vm_config() {
     export HOST_NAME=$1
 
-    envsubst '${OST_NAME} ${MY_PUBLIC_KEY} ${PROXMOX_ROOT_PUBLIC_KEY}' < blank/blank.yaml | tee generated/${HOST_NAME}.yaml > /dev/null
+    envsubst '${HOST_NAME} ${MY_PUBLIC_KEY} ${PROXMOX_ROOT_PUBLIC_KEY}' < blank/blank.yaml | tee generated/${HOST_NAME}.yaml > /dev/null
 
     cloud-init devel make-mime \
      -a generated/${HOST_NAME}.yaml:cloud-config \

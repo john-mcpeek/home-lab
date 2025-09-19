@@ -4,7 +4,7 @@ function build_k8s_node_user_data() {
     export HOST_NAME=$1
     echo $HOST_NAME
 
-    envsubst '${HOST_NAME}' < k8s/k8s-node-base.yaml | tee generated/k8s-node-base-${HOST_NAME}.yaml > /dev/null
+    envsubst '${HOST_NAME}' < kubespray/k8s-node-base.yaml | tee generated/k8s-node-base-${HOST_NAME}.yaml > /dev/null
 
     cloud-init devel make-mime \
      -a generated/k8s-node-base-${HOST_NAME}.yaml:cloud-config \

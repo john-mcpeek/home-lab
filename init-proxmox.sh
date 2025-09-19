@@ -13,7 +13,7 @@ export PROXMOX_IP=$1
 export PROXMOX_PASSWORD=$2
 MY_PUBLIC_KEY=$(cat ~/.ssh/id_ed25519.pub)
 export MY_PUBLIC_KEY
-ANSIBLE_PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)
+ANSIBLE_PUBLIC_KEY=$(cat ~/.ssh/ansible.pub)
 export ANSIBLE_PUBLIC_KEY
 
 ssh-copy-id "root@${PROXMOX_IP}"

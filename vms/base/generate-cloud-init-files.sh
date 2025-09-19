@@ -29,8 +29,6 @@ function dns_setup() {
   export DDNS_SERVER
 
   envsubst '${DDNS_KEY} ${DDNS_SERVER}' < base/base-dns-self-register.yaml | tee generated/base-dns-self-register.yaml > /dev/null
-  envsubst '${DDNS_KEY} ${NODE_IP}' < base/base-dns-register-dynamic.yaml | tee generated/base-dns-register-dynamic.yaml > /dev/null
-  envsubst '${DDNS_KEY} ${NODE_IP}' < base/base-dns-register-static-ip.yaml | tee generated/base-dns-register-static-ip.yaml > /dev/null
 }
 
 function update_keys() {
