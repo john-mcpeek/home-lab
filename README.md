@@ -14,4 +14,6 @@ It takes a few minutes to complete. What it gives you:
     - Base images for both static and dynamic IPs are created
 - Base images
     - setup with qemu-guest-agent
-    - ssh keys for john and proxmox root user are installed 
+    - ssh keys for john and proxmox root user are installed
+
+test
