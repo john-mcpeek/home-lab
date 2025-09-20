@@ -16,4 +16,4 @@ It takes a few minutes to complete. What it gives you:
     - setup with qemu-guest-agent
     - ssh keys for john and proxmox root user are installed
 
-test
+test2
