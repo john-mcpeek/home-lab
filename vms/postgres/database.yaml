@@ -11,17 +11,18 @@ package_update: true
 package_upgrade: true
 package_reboot_if_required: true
 
+apt:
+  preserve_sources_list: true
+  sources:
+    postgresql:
+      source: deb http://apt.postgresql.org/pub/repos/apt/ $RELEASE-pgdg main
+      keyid: B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
+
 packages:
-  - postgresql
+  - postgresql-17
+  - postgresql-17-pgvector
   - postgresql-contrib
   - ufw
-
-users:
-  - name: postgres
-    gecos: PostgreSQL Admin
-    groups: postgres
-    shell: /bin/bash
-    lock_passwd: true
 
 write_files:
   - path: /etc/tmpfiles.d/disable-thp.conf
