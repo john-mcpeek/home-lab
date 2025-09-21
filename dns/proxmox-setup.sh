@@ -35,6 +35,8 @@ function update_packages() {
     apparmor-utils
 
   snap install yq
+
+  apt autoremove -y
 }
 
 function configure_lab_dns_zone() {

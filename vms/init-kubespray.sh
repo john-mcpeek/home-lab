@@ -9,6 +9,9 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
+echo "##########################################################"
+echo "Starting: $0"
+
 export PROXMOX_IP=$1
 
 ssh "root@${PROXMOX_IP}" "rm -rf vms/blank/*"
@@ -18,3 +21,5 @@ scp -r ../inventory/ "root@${PROXMOX_IP}":~/
 
 ssh "root@${PROXMOX_IP}" "cd vms && ./kubespray/generate-cloud-init-files.sh"
 ssh "root@${PROXMOX_IP}" "cd vms && ./kubespray/build-k8s-vms.sh ${PROXMOX_IP}"
+
+echo "$0 complete"

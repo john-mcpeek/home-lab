@@ -9,6 +9,9 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
+echo "##########################################################"
+echo "Starting: $0"
+
 export PROXMOX_IP=$1
 export POSTGRES_PASSWORD=$2
 
@@ -21,3 +24,5 @@ scp -r postgres/ "root@${PROXMOX_IP}":~/vms
 
 ssh "root@${PROXMOX_IP}" "cd vms && ./postgres/generate-cloud-init-files.sh '${MY_PUBLIC_KEY}' ${POSTGRES_PASSWORD}"
 ssh "root@${PROXMOX_IP}" "cd vms && ./postgres/build-postgres-vm.sh ${PROXMOX_IP}"
+
+echo "$0 complete"

@@ -16,12 +16,14 @@ export PROXMOX_IP=$1
 
 MY_PUBLIC_KEY=$(cat ~/.ssh/id_ed25519.pub)
 export MY_PUBLIC_KEY
+ANSIBLE_PUBLIC_KEY=$(cat ~/.ssh/ansible.pub)
+export ANSIBLE_PUBLIC_KEY
 
-ssh "root@${PROXMOX_IP}" "rm -rf vms/blank/*"
+ssh "root@${PROXMOX_IP}" "rm -rf vms/base/*"
 
-scp -r blank/ "root@${PROXMOX_IP}":~/vms
+scp -r base/ "root@${PROXMOX_IP}":~/vms
 
-ssh "root@${PROXMOX_IP}" "cd vms && ./blank/generate-cloud-init-files.sh '${MY_PUBLIC_KEY}'"
-ssh "root@${PROXMOX_IP}" "cd vms && ./blank/build-blank-vm.sh ${PROXMOX_IP}"
+ssh "root@${PROXMOX_IP}" "cd vms && ./base/generate-cloud-init-files.sh '$MY_PUBLIC_KEY' '$ANSIBLE_PUBLIC_KEY'"
+ssh "root@${PROXMOX_IP}" "cd vms && ./base/build-base-templates.sh"
 
 echo "$0 complete"
