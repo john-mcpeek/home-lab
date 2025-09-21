@@ -1,7 +1,7 @@
 # Usage
 
 ```bash
-    ./init-proxmox.sh $PROXMOX_HOST $PROXMOX_ROOT_PASSWORD
+    ./init-proxmox.sh $PROXMOX_HOST_IP $PROXMOX_ROOT_PASSWORD $POSTGRES_PASSWORD
 ```
 
 It takes a few minutes to complete. What it gives you:
@@ -11,7 +11,18 @@ It takes a few minutes to complete. What it gives you:
 - ssh keys are copied
 - Dynamic DNS is configured
     - Proxmox is the DNS provider
-    - Base images for both static and dynamic IPs are created
-- Base images
+    - Base image created with auto register DNS configured and changed to a template
+
+- Base image
     - setup with qemu-guest-agent
-    - ssh keys for john and proxmox root user are installed
+    - ssh keys for john and ansible user are installed
+    - <b>Note:</b> The base image will always shut down. This is expected. This enables
+      building without user intervention. However, it means you need to use a cloud-init script
+      to configure the final VM. As for example, you can see in the `blank` VM.
+- Blank VM
+  - Nothing special, but mostly empty cloud-init script. This is an example of how to use the base image.
+- Postgres
+  - Simple Postgres server.
+- Kubespray (alpha)
+  - VMs ready to use as Kubernetes nodes managed by kubespray.
+  - Ansible inventory is used to configure the VMs for nodes.
