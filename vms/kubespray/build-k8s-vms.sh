@@ -17,14 +17,14 @@ function clone_template() {
 
   echo "BASE_TEMPLATE_VMID: $BASE_TEMPLATE_VMID, NEW_VM_VMID: $NEW_VM_VMID, GUESS_HOST_NAME: $GUESS_HOST_NAME, CORES: $CORES, RAM: $RAM, DNS_NODE_IP: $DNS_NODE_IP, tags: ${tags[@]}"
 
-  qm clone $BASE_TEMPLATE_VMID $NEW_VM_VMID --pool $POOL --name $GUESS_HOST_NAME
+  qm clone "$BASE_TEMPLATE_VMID" "$NEW_VM_VMID" --pool $POOL --name "$GUESS_HOST_NAME"
 
-  qm set $NEW_VM_VMID --cores $CORES
-  qm set $NEW_VM_VMID --memory $RAM
-  qm set $NEW_VM_VMID --cicustom "user=local:snippets/user-data-$GUESS_HOST_NAME.mime"
-  qm set $NEW_VM_VMID --ipconfig0 "ip=10.0.0.$NEW_VM_VMID/24,gw=10.0.0.1"
-  qm set $NEW_VM_VMID --nameserver "${DNS_NODE_IP} 75.75.75.75"
-  qm set $NEW_VM_VMID "${tags[@]}"
+  qm set "$NEW_VM_VMID" --cores "$CORES"
+  qm set "$NEW_VM_VMID" --memory "$RAM"
+  qm set "$NEW_VM_VMID" --cicustom "user=local:snippets/user-data-$GUESS_HOST_NAME.mime"
+  qm set "$NEW_VM_VMID" --ipconfig0 "ip=10.0.0.$NEW_VM_VMID/24,gw=10.0.0.1"
+  qm set "$NEW_VM_VMID" --nameserver "${DNS_NODE_IP} 75.75.75.75"
+  qm set "$NEW_VM_VMID" "${tags[@]}"
 }
 
 export DNS_NODE_IP=$1
@@ -47,10 +47,11 @@ for vm_name in "${!k8s_vms[@]}"; do
   last_octet="${vm_ip##*.}"
   vm_id="$last_octet"
 
-  qm shutdown $vm_id
-  qm destroy $vm_id
+  qm shutdown "$vm_id"
+  qm destroy "$vm_id"
 
-  clone_template 9999 $vm_id $vm_name $cores $memory dev $tags
+  # shellcheck disable=SC2128
+  clone_template 9999 "$vm_id" "$vm_name" "$cores" "$memory" dev "$tags"
 
-  qm start $vm_id
+  qm start "$vm_id"
 done
