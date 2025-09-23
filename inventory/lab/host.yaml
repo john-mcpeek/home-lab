@@ -60,6 +60,7 @@ all:
         k8s-wkr-01: {}
         k8s-wkr-02: {}
         k8s-wkr-03: {}
+        k8s-wkr-04: {}
     etcd:
       hosts:
         k8s-ctrl-01: {}

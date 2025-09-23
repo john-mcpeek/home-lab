@@ -1,0 +1,98 @@
+# Kubernetes cluster configuration for HA setup with MetalLB and Cilium
+# Network configuration to avoid conflicts with lab network (10.0.0.0/24)
+
+# Basic cluster configuration
+cluster_name: lab-cluster
+kube_version: 1.33.5
+
+# Network settings - avoiding 10.0.0.0/24 lab network
+kube_network_plugin: cilium
+kube_pods_subnet: 10.244.0.0/16
+kube_service_addresses: 10.96.0.0/12
+
+# DNS configuration
+dns_mode: coredns
+enable_nodelocaldns: true
+nodelocaldns_ip: 169.254.25.10
+
+# Container runtime
+container_manager: containerd
+containerd_version: 2.1.4
+
+# Cilium CNI configuration
+cilium_version: 1.18.2
+cilium_enable_ipv4: true
+cilium_enable_ipv6: false
+cilium_tunnel_mode: vxlan
+cilium_enable_hubble: true
+cilium_hubble_metrics_enabled: true
+
+# API server configuration for HA
+kube_apiserver_bind_address: 0.0.0.0
+kube_apiserver_port: 6443
+
+# Load balancer configuration (using MetalLB)
+enable_metallb: true
+metallb_version: 0.13.9
+metallb_speaker_enabled: true
+metallb_avoid_buggy_ips: true
+metallb_protocol: layer2
+
+# MetalLB IP pool - adjust range as needed for your lab
+metallb_config:
+  address_pools:
+    primary:
+      ip_range:
+        - "10.0.0.200-10.0.0.220"
+      protocol: "layer2"
+      auto_assign: true
+
+# etcd configuration for HA
+etcd_deployment_type: host
+
+# Feature gates and additional configurations
+kube_feature_gates:
+  - "GracefulNodeShutdown=true"
+  - "GracefulNodeShutdownBasedOnPodPriority=true"
+
+# Security
+authorization_modes: ['Node', 'RBAC']
+rbac_enabled: true
+
+# Kubelet configuration
+kubelet_max_pods: 110
+kubelet_pod_pids_limit: 4096
+
+# Additional components
+helm_enabled: true
+metrics_server_enabled: true
+local_path_provisioner_enabled: true
+
+# Ingress controller (optional - can be enabled if needed)
+ingress_nginx_enabled: false
+
+# Audit logging
+kubernetes_audit: true
+audit_log_maxage: 30
+audit_log_maxbackups: 3
+audit_log_maxsize: 100
+
+# Node configuration
+kubelet_rotate_certificates: true
+kubelet_rotate_server_certificates: true
+
+# Cluster monitoring and logging (optional)
+cluster_monitoring: false
+efk_enabled: false
+
+# Registry configuration
+registry_enabled: false
+
+# Backup configuration
+etcd_backup_enabled: true
+etcd_backup_retention_days: 7
+
+etcd_supported_versions:
+  "1.31": "3.5.15"
+  "1.32": "3.5.15"
+  "1.33": "3.5.15"

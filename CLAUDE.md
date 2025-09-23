@@ -21,18 +21,8 @@ This is a Proxmox-based home lab automation repository that sets up a complete i
 ./vms/init-postgres.sh $PROXMOX_IP $POSTGRES_PASSWORD  # Sets up PostgreSQL VM
 ```
 
-### File Conversion (Important)
-```bash
-
-# Convert all files from DOS to Unix format before deployment
-find . -type f -exec dos2unix {} \;
-```
-
 ### DNS Validation Commands
 ```bash
-# Check DNS configuration (built into dns/proxmox-setup.sh)
-named-checkconf
-named-checkzone lab /var/cache/bind/db.lab
 
 # Test DNS resolution
 dig @localhost pve.lab
