@@ -22,6 +22,6 @@ ssh "root@${PROXMOX_IP}" "rm -rf vms/blank/*"
 scp -r blank/ "root@${PROXMOX_IP}":~/vms
 
 ssh "root@${PROXMOX_IP}" "cd vms && ./blank/generate-cloud-init-files.sh '${MY_PUBLIC_KEY}'"
-ssh "root@${PROXMOX_IP}" "cd vms && ./blank/build-blank-vm.sh ${PROXMOX_IP}"
+ssh "root@${PROXMOX_IP}" "cd vms && ./blank/build-vm.sh ${PROXMOX_IP}"
 
 echo "$0 complete"

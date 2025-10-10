@@ -19,6 +19,6 @@ ssh "root@${PROXMOX_IP}" "rm -rf vms/cluster-api/*"
 scp -r cluster-api/ "root@${PROXMOX_IP}":~/vms
 
 ssh "root@${PROXMOX_IP}" "cd vms && ./cluster-api/generate-cloud-init-files.sh"
-ssh "root@${PROXMOX_IP}" "cd vms && ./cluster-api/build-image-builder-vm.sh ${PROXMOX_IP}"
+ssh "root@${PROXMOX_IP}" "cd vms && ./cluster-api/build-vm.sh ${PROXMOX_IP}"
 
 echo "$0 complete"
