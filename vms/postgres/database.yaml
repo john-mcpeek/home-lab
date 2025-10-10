@@ -69,7 +69,7 @@ write_files:
 
       # Allow connections from any IP with MD5 password authentication
       # WARNING: This is insecure for production; restrict to specific IPs as needed
-      echo "host    all             all             10.0.0.0/24             scram-sha-256" >> "${PG_HBA}"
+      echo "host    all             all             10.0.0.0/8             scram-sha-256" >> "${PG_HBA}"
 
       # Restart PostgreSQL
       systemctl restart postgresql
