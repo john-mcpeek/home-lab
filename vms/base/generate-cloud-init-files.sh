@@ -41,7 +41,6 @@ function dns_self_register() {
     -a generated/base-dns-self-register.yaml:cloud-config \
     -a base/base-shut-down.yaml:cloud-config \
     > generated/user-data-base-dns-self-register.mime
-    cloud-init schema --config-file generated/user-data-base-dns-self-register.mime --annotate
 }
 
 export MY_PUBLIC_KEY=$1

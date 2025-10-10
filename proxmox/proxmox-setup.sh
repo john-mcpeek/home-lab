@@ -52,7 +52,7 @@ function configure_lab_dns_zone() {
 
   local PROXMOX_IP=$1
 
-  mkdir -p generated
+  mkdir -p generated/dns
   envsubst '${PROXMOX_IP}' < dns/db.10.0.0 | tee generated/dns/db.10.0.0 > /dev/null
   envsubst '${PROXMOX_IP}' < dns/db.lab | tee generated/dns/db.lab > /dev/null
   envsubst '${PROXMOX_IP}' < dns/resolv.conf | tee generated/dns/resolv.conf > /dev/null
