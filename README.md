@@ -3,6 +3,7 @@
 ## Initial Setup
 
 ```bash
+    ssh-keygen -t ed25519 -C ansible@home.lab
     ./init-proxmox.sh $PROXMOX_HOST_IP $PROXMOX_ROOT_PASSWORD $POSTGRES_PASSWORD
 ```
 

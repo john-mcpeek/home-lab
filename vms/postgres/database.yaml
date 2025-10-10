@@ -19,8 +19,8 @@ apt:
       keyid: B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
 
 packages:
-  - postgresql-17
-  - postgresql-17-pgvector
+  - postgresql-18
+  - postgresql-18-pgvector
   - postgresql-contrib
   - ufw
 

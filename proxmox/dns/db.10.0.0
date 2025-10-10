@@ -8,5 +8,5 @@ $TTL 300
 
     IN  NS   pve.lab.
 
-; PTR for the host itself (10.0.0.10 -> pve.lab.)
+; PTR for the host itself (${PROXMOX_IP} -> pve.lab.)
 10  IN  PTR  pve.lab.

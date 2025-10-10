@@ -14,8 +14,20 @@ echo "Starting: $0"
 
 export PROXMOX_IP=$1
 
+
+if [ ! -f "$HOME/.ssh/id_ed25519.pub" ]; then
+  echo "***********************************************************"
+  echo "You need an ssh key. In this case an Ed25519 algorithm key."
+  echo "***********************************************************"
+  exit 1;
+fi
 MY_PUBLIC_KEY=$(cat ~/.ssh/id_ed25519.pub)
 export MY_PUBLIC_KEY
+
+if [ ! -f "$HOME/.ssh/ansible.pub" ]; then
+  echo "Creating an ansible key."
+  ssh-keygen -t ed25519 -f ansible -C ansible@home.lab
+fi
 ANSIBLE_PUBLIC_KEY=$(cat ~/.ssh/ansible.pub)
 export ANSIBLE_PUBLIC_KEY
 

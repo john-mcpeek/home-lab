@@ -9,4 +9,4 @@ $TTL 300
     IN  NS   pve.lab.
 
 ; Glue for the NS above
-pve IN  A    10.0.0.10
+pve IN  A    ${PROXMOX_IP}

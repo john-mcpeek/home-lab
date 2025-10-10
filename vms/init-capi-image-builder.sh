@@ -14,12 +14,11 @@ echo "Starting: $0"
 
 export PROXMOX_IP=$1
 
-ssh "root@${PROXMOX_IP}" "rm -rf vms/blank/*"
+ssh "root@${PROXMOX_IP}" "rm -rf vms/cluster-api/*"
 
-scp -r kubespray/ "root@${PROXMOX_IP}":~/vms
-scp -r ../inventory/ "root@${PROXMOX_IP}":~/
+scp -r cluster-api/ "root@${PROXMOX_IP}":~/vms
 
-ssh "root@${PROXMOX_IP}" "cd vms && ./kubespray/generate-cloud-init-files.sh"
-ssh "root@${PROXMOX_IP}" "cd vms && ./kubespray/build-k8s-vms.sh ${PROXMOX_IP}"
+ssh "root@${PROXMOX_IP}" "cd vms && ./cluster-api/generate-cloud-init-files.sh"
+ssh "root@${PROXMOX_IP}" "cd vms && ./cluster-api/build-image-builder-vm.sh ${PROXMOX_IP}"
 
 echo "$0 complete"
