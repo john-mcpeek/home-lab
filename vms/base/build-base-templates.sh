@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-wget -nc -P /root https://cloud-images.ubuntu.com/releases/noble/release/ubuntu-24.04-server-cloudimg-amd64.img
+wget -q -nc -P /root https://cloud-images.ubuntu.com/releases/noble/release/ubuntu-24.04-server-cloudimg-amd64.img
 
 qm shutdown 9999
 qm destroy 9999

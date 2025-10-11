@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-export PROXMOX_URL=https://10.0.0.10:8006/api2/json
+export PROXMOX_URL=https://${PROXMOX_IP}:8006/api2/json
 export PROXMOX_TOKEN=image-builder@pve!capi
-export PROXMOX_SECRET=643b49ea-82f6-47e2-888b-c03a72bddd72
+export PROXMOX_SECRET=${PROXMOX_TOKEN}
 
 # The node that hosts the VM template to be used to provision VMs
 export PROXMOX_SOURCENODE="pve"

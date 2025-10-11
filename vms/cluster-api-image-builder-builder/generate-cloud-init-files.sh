@@ -3,7 +3,7 @@
 function build_vm_config() {
     export HOST_NAME=$1
 
-    envsubst '${HOST_NAME} ${DNS_SERVER_IP} ${PROXMOX_TOKEN}' < cluster-api-image-builder-builder/image-builder.yaml | tee generated/${HOST_NAME}.yaml > /dev/null
+    envsubst '${HOST_NAME} ${PROXMOX_IP} ${PROXMOX_TOKEN}' < cluster-api-image-builder-builder/image-builder.yaml | tee generated/${HOST_NAME}.yaml > /dev/null
 
     cloud-init devel make-mime \
      -a generated/${HOST_NAME}.yaml:cloud-config \
