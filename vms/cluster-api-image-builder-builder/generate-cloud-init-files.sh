@@ -10,7 +10,7 @@ function build_vm_config() {
      > generated/user-data-${HOST_NAME}.mime
 }
 
-export DNS_SERVER_IP=$1
+export PROXMOX_IP=$1
 PROXMOX_TOKEN=$(cat ~/image-builder.token | grep PROXMOX_TOKEN | cut -d'=' -f2-)
 export PROXMOX_TOKEN
 

@@ -58,7 +58,7 @@ write_files:
       USER root
       
       # Fetch the server cert and place it in the CA certificates directory
-      RUN openssl s_client -servername pve.lab -connect ${DNS_SERVER_IP}:8006 </dev/null 2>/dev/null | \
+      RUN openssl s_client -servername pve.lab -connect ${PROXMOX_IP}:8006 </dev/null 2>/dev/null | \
           openssl x509 -outform PEM > /usr/local/share/ca-certificates/pve.lab.crt && \
           update-ca-certificates
       
