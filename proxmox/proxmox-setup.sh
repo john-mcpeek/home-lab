@@ -42,8 +42,6 @@ function update_packages() {
   apt autoremove -y && \
   apt clean
 
-  /usr/bin/snap install yq
-
   echo "update_packages - complete"
 }
 
