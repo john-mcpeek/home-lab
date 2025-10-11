@@ -1,0 +1,86 @@
+#Cloud-config
+merge_how:
+  - name: list
+    settings: [ append ]
+  - name: dict
+    settings: [ no_replace, recurse_list ]
+
+hostname: ${HOST_NAME}
+
+package_update: true
+package_upgrade: true
+package_reboot_if_required: true
+
+apt:
+  preserve_sources_list: true
+  sources:
+    docker:
+      source: deb [arch="amd64" signed-by=$KEY_FILE] https://download.docker.com/linux/ubuntu $RELEASE stable
+      keyid: 8D81803C0EBFCD88
+
+packages:
+  - build-essential
+  - containerd.io
+  - docker-ce
+  - docker-ce-cli
+  - docker-buildx-plugin
+  - git
+
+write_files:
+  - path: /cluster-api/proxmox.env
+    permissions: '0755'
+    content: |
+      PROXMOX_BRIDGE=vmbr0
+      PROXMOX_ISO_POOL=local
+      PROXMOX_NODE=pve
+      PROXMOX_STORAGE_POOL=local-lvm
+      PROXMOX_TOKEN=${PROXMOX_TOKEN}
+      PROXMOX_URL=https://${DNS_SERVER_IP}:8006/api2/json
+      PROXMOX_USERNAME=image-builder@pve!capi
+      PACKER_VAR_FILES=proxmox_packer_overrides.json
+  - path: /cluster-api/proxmox_packer_overrides.json
+    permissions: '0755'
+    content: |
+      {
+        "memory": "8192",
+        "disk_format": "raw",
+        "kubernetes_deb_version": "1.34.1-1.1",
+        "kubernetes_semver": "v1.34.1",
+        "kubernetes_series": "v1.34",
+        "crictl_version": "1.34.0"
+      }
+  - path: /cluster-api/Dockerfile
+    permissions: '0755'
+    content: |
+      FROM  gcr.io/scl-image-builder/cluster-node-image-builder-amd64:dev
+
+      # Update certificate store
+      USER root
+      
+      # Fetch the server cert and place it in the CA certificates directory
+      RUN openssl s_client -servername pve.lab -connect ${DNS_SERVER_IP}:8006 </dev/null 2>/dev/null | \
+          openssl x509 -outform PEM > /usr/local/share/ca-certificates/pve.lab.crt && \
+          update-ca-certificates
+      
+      USER imagebuilder
+      # Keep original entrypoint
+  - path: /cluster-api/build-images.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+
+      # export PACKER_VAR_FILES=custom-k8s-1.34.json
+      cd /cluster-api/image-builder/images/capi
+      sudo make docker-build
+      
+      cd ../../..
+      sudo docker build . -t image-builder-with-pve-crt
+      sudo docker run -it --rm --net=host --env-file proxmox.env \
+        -v ./proxmox_packer_overrides.json:/home/imagebuilder/proxmox_packer_overrides.json \
+        -v /cluster-api:/home/imagebuilder/images/capi/downloaded_iso_path \
+        image-builder-with-pve-crt build-proxmox-ubuntu-2404
+runcmd:
+  - mkdir -p /cluster-api
+  - cd /cluster-api
+  - git clone --depth 1 https://github.com/kubernetes-sigs/image-builder.git

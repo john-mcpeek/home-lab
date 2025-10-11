@@ -14,11 +14,11 @@ echo "Starting: $0"
 
 export PROXMOX_IP=$1
 
-ssh "root@${PROXMOX_IP}" "rm -rf vms/cluster-api/*"
+ssh "root@${PROXMOX_IP}" "rm -rf vms/cluster-api-image-builder-builder/*"
 
-scp -r cluster-api/ "root@${PROXMOX_IP}":~/vms
+scp -r cluster-api-image-builder-builder/ "root@${PROXMOX_IP}":~/vms
 
-ssh "root@${PROXMOX_IP}" "cd vms && ./cluster-api/generate-cloud-init-files.sh"
-ssh "root@${PROXMOX_IP}" "cd vms && ./cluster-api/build-vm.sh ${PROXMOX_IP}"
+ssh "root@${PROXMOX_IP}" "cd vms && ./cluster-api-image-builder-builder/generate-cloud-init-files.sh ${PROXMOX_IP}"
+ssh "root@${PROXMOX_IP}" "cd vms && ./cluster-api-image-builder-builder/build-vm.sh ${PROXMOX_IP}"
 
 echo "$0 complete"
