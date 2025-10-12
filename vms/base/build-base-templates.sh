@@ -10,7 +10,7 @@ export DDNS_SERVER
 
 # create a new VM with VirtIO SCSI controller
 qm create 9999 --name base-dns-self-register \
-  --tags "base ubuntu dns-self-register" \
+  --tags "base dns-self-register ubuntu" \
   --nameserver "${DDNS_SERVER} 75.75.75.75" \
   --net0 virtio,bridge=vmbr0 \
   --scsihw virtio-scsi-single \

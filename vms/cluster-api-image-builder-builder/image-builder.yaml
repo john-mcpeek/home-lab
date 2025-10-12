@@ -64,7 +64,7 @@ write_files:
       
       USER imagebuilder
       # Keep original entrypoint
-  - path: /cluster-api/build-images.sh
+  - path: /cluster-api/make-image-builder-image.sh
     permissions: '0755'
     content: |
       #!/bin/bash
@@ -77,13 +77,27 @@ write_files:
       # Build the image with the our Proxmox CA cert added
       cd /cluster-api
       sudo docker build . -t image-builder-with-pve-crt
+
+  - path: /cluster-api/build-cluster-api-vm.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -euo pipefail
       
       # Run the image builder for Kubernetes Cluster API
       sudo docker run -it --rm --net=host --env-file proxmox.env \
         -v ./proxmox_packer_overrides.json:/home/imagebuilder/proxmox_packer_overrides.json \
         -v /cluster-api:/home/imagebuilder/images/capi/downloaded_iso_path \
         image-builder-with-pve-crt build-proxmox-ubuntu-2404
+
+      # Get the image name.
+      K8S_VERSION=$(cat proxmox_packer_overrides.json | jq -r '.kubernetes_semver')
+      K8S_IMAGE_NAME=$(echo "ubuntu-2404-kube-${K8S_VERSION}")
+      
+      return $K8S_IMAGE_NAME
 runcmd:
   - mkdir -p /cluster-api
   - cd /cluster-api
   - git clone --depth 1 https://github.com/kubernetes-sigs/image-builder.git
+
+  - make-image-builder-image.sh
