@@ -141,7 +141,8 @@ function create_pool() {
   local USER_NAME="root@pam"    # Change if using a different user
 
   # Step 1: Authenticate to get ticket and CSRF token
-  local AUTH_RESPONSE=$(curl -s -k -d "username=${USER_NAME}&password=${PASSWORD}" "${API_URL}/access/ticket")
+  local AUTH_RESPONSE
+  AUTH_RESPONSE=$(curl -s -k -d "username=${USER_NAME}&password=${PASSWORD}" "${API_URL}/access/ticket")
 
   # Check if authentication was successful
   if ! echo "${AUTH_RESPONSE}" | jq -e '.data.ticket' > /dev/null; then
@@ -150,11 +151,14 @@ function create_pool() {
   fi
 
   # Extract ticket and CSRF token
-  local TICKET=$(echo "${AUTH_RESPONSE}" | jq -r '.data.ticket')
-  local CSRF_TOKEN=$(echo "${AUTH_RESPONSE}" | jq -r '.data.CSRFPreventionToken')
+  local TICKET
+  TICKET=$(echo "${AUTH_RESPONSE}" | jq -r '.data.ticket')
+  local CSRF_TOKEN
+  CSRF_TOKEN=$(echo "${AUTH_RESPONSE}" | jq -r '.data.CSRFPreventionToken')
 
   # Step 2: Create the pool
-  local CREATE_RESPONSE=$(curl -s -k \
+  local CREATE_RESPONSE
+  CREATE_RESPONSE=$(curl -s -k \
       -b "PVEAuthCookie=${TICKET}" \
       -H "CSRFPreventionToken: ${CSRF_TOKEN}" \
       -d "poolid=${POOL_NAME}" \
@@ -168,7 +172,8 @@ function create_pool() {
       if [[ "$CREATE_RESPONSE" =~ "already exists" ]]; then
         echo "The '$POOL_NAME' pool already exists."
       else
-        local ERROR_MESSAGE=$(echo "${CREATE_RESPONSE}" | jq -r '.message // "Unknown error"')
+        local ERROR_MESSAGE
+        ERROR_MESSAGE=$(echo "${CREATE_RESPONSE}" | jq -r '.message // "Unknown error"')
         echo "Error: Failed to create pool: ${ERROR_MESSAGE}"
         echo "Full response: ${CREATE_RESPONSE}"
       fi
@@ -184,10 +189,12 @@ function add_image_builder_user() {
   local PVE_HOST="$1"
   local USER_NAME="image-builder"
   local TOKEN_NAME="capi"
-  local PASSWORD=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16)
+  local PASSWORD
+  PASSWORD=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16)
 
   # Create user
-  local IMAGE_BUILDER_USER=$(pveum user list --output-format json | jq '.[] | select(.userid == "image-builder@pve")')
+  local IMAGE_BUILDER_USER
+  IMAGE_BUILDER_USER=$(pveum user list --output-format json | jq '.[] | select(.userid == "image-builder@pve")')
   if [ -z "$IMAGE_BUILDER_USER" ]; then
     pveum user add "${USER_NAME}@pve" --password "${PASSWORD}"
     echo "user: ${USER_NAME}@pve added"
@@ -195,7 +202,8 @@ function add_image_builder_user() {
     echo "user: ${USER_NAME}@pve existed. No action taken"
   fi
 
-  local IMAGE_BUILDER_ROLE=$(pveum role list --output-format json | jq '.[] | select(.roleid == "image-builder")')
+  local IMAGE_BUILDER_ROLE
+  IMAGE_BUILDER_ROLE=$(pveum role list --output-format json | jq '.[] | select(.roleid == "image-builder")')
   if [ -z "$IMAGE_BUILDER_ROLE" ]; then
     pveum role add "${USER_NAME}" --privs "VM.GuestAgent.Unrestricted, VM.GuestAgent.FileRead, Sys.AccessNetwork, VM.Audit, Sys.Syslog, VM.GuestAgent.Audit, Sys.Incoming, Datastore.AllocateTemplate, VM.Snapshot.Rollback, VM.Console, VM.Snapshot, Sys.Console, VM.GuestAgent.FileWrite, VM.Config.HWType, VM.Clone, Datastore.Allocate, VM.Replicate, VM.Config.Disk, VM.Config.Network, VM.GuestAgent.FileSystemMgmt, VM.Backup, Datastore.AllocateSpace, VM.PowerMgmt, VM.Allocate, SDN.Allocate, VM.Config.CDROM, Sys.Modify, VM.Config.CPU, Datastore.Audit, VM.Config.Cloudinit, Sys.Audit, Sys.PowerMgmt, SDN.Use, VM.Config.Options, SDN.Audit, VM.Config.Memory, VM.Migrate, Group.Allocate, Mapping.Audit, Mapping.Modify, Mapping.Use, Permissions.Modify, Pool.Allocate, Pool.Audit, Realm.Allocate, Realm.AllocateUser, User.Modify"
     echo "role: ${USER_NAME} added"
@@ -204,7 +212,8 @@ function add_image_builder_user() {
   fi
 
   # Give permissions
-  local IMAGE_BUILDER_ACL=$(pveum acl list --output-format json | jq '.[] | select(.ugid == "image-builder@pve")')
+  local IMAGE_BUILDER_ACL
+  IMAGE_BUILDER_ACL=$(pveum acl list --output-format json | jq '.[] | select(.ugid == "image-builder@pve")')
   if [ -z "$IMAGE_BUILDER_ACL" ]; then
     pveum acl modify / -user "${USER_NAME}@pve" -role "${USER_NAME}"
     echo "acl for user: ${USER_NAME}@pve modified"
@@ -213,9 +222,11 @@ function add_image_builder_user() {
   fi
 
   # Create token
-  local IMAGE_BUILDER_TOKEN=$(pveum user token list "${USER_NAME}@pve" --output-format json | jq '.[] | select(.tokenid == "capi")')
+  local IMAGE_BUILDER_TOKEN
+  IMAGE_BUILDER_TOKEN=$(pveum user token list "${USER_NAME}@pve" --output-format json | jq '.[] | select(.tokenid == "capi")')
   if [ -z "$IMAGE_BUILDER_TOKEN" ]; then
-    local TOKEN=$(pveum user token add "${USER_NAME}@pve" "${TOKEN_NAME}" --privsep 0 --output-format json | jq -r '.value')
+    local TOKEN
+    TOKEN=$(pveum user token add "${USER_NAME}@pve" "${TOKEN_NAME}" --privsep 0 --output-format json | jq -r '.value')
     echo "token: ${TOKEN_NAME} added for user: ${USER_NAME}@pve"
   else
     if [ -f "$HOME/image-builder.token" ]; then
@@ -223,7 +234,8 @@ function add_image_builder_user() {
     else
       echo "Token exists. We can't get that value. So, we delete it and create a new one."
       pveum user token delete "${USER_NAME}@pve" "${TOKEN_NAME}"
-      local TOKEN=$(pveum user token add "${USER_NAME}@pve" "${TOKEN_NAME}" --privsep 0 --output-format json | jq -r '.value')
+      local TOKEN
+      TOKEN=$(pveum user token add "${USER_NAME}@pve" "${TOKEN_NAME}" --privsep 0 --output-format json | jq -r '.value')
       echo "token: ${TOKEN_NAME} added for user: ${USER_NAME}@pve"
     fi
   fi
