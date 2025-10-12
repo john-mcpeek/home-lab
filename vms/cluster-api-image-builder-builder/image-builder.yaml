@@ -99,5 +99,3 @@ runcmd:
   - mkdir -p /cluster-api
   - cd /cluster-api
   - git clone --depth 1 https://github.com/kubernetes-sigs/image-builder.git
-
-  - make-image-builder-image.sh

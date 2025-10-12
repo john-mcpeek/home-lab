@@ -80,8 +80,9 @@ function configure_lab_dns_zone() {
   named-checkzone lab /etc/bind/zones/db.lab
   named-checkzone 0.0.10.in-addr.arpa /etc/bind/zones/db.10.0.0
 
-  systemctl enable --now named
+  systemctl enable --quiet --now named
   systemctl reload named
+  systemctl status named
 
   # Test DNS
   echo "expect: ${PROXMOX_IP}"

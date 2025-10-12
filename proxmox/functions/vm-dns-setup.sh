@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 function dns_setup() {
-  local CLOUD_INIT_DNS_SELF_REGISTER-YAML="$1"
+  local CLOUD_INIT_DNS_SELF_REGISTER_YAML="$1"
 
   # Path to the configuration file
   CONFIG_FILE="/etc/bind/keys/ddns.key"
@@ -30,5 +30,5 @@ function dns_setup() {
   DDNS_SERVER=$NODE_IP
   export DDNS_SERVER
 
-  envsubst '${DDNS_KEY} ${DDNS_SERVER}' < "$cloud-init-dns-self-register-yaml" | tee generated/base-dns-self-register.yaml > /dev/null
+  envsubst '${DDNS_KEY} ${DDNS_SERVER}' < "${CLOUD_INIT_DNS_SELF_REGISTER_YAML}" | tee generated/base-dns-self-register.yaml > /dev/null
 }
