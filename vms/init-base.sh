@@ -35,7 +35,7 @@ ssh "root@${PROXMOX_IP}" "rm -rf vms/base/*"
 
 scp -r base/ "root@${PROXMOX_IP}":~/vms
 
-ssh "root@${PROXMOX_IP}" "cd vms && ./base/generate-cloud-init-files.sh '$MY_PUBLIC_KEY' '$ANSIBLE_PUBLIC_KEY'"
+ssh "root@${PROXMOX_IP}" "cd vms && ./base/generate-cloud-init-files.sh '${MY_PUBLIC_KEY}' '${ANSIBLE_PUBLIC_KEY}'"
 ssh "root@${PROXMOX_IP}" "cd vms && ./base/build-base-templates.sh"
 
 echo "$0 complete"

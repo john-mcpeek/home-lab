@@ -27,7 +27,7 @@ ssh "root@${PROXMOX_IP}" "cd proxmox && ./proxmox-setup.sh ${PROXMOX_PASSWORD}"
 
 # Setup VMs
 cd vms
-./init-base.sh "$PROXMOX_IP"
-./init-blank.sh "$PROXMOX_IP"
-./init-postgres.sh "$PROXMOX_IP" "$POSTGRES_PASSWORD"
-./init-capi-image-builder-builder.sh "$PROXMOX_IP"
+./init-base.sh "${PROXMOX_IP}"
+./init-blank.sh "${PROXMOX_IP}"
+./init-postgres.sh "${PROXMOX_IP}" "${POSTGRES_PASSWORD}"
+./init-capi-image-builder-builder.sh "${PROXMOX_IP}"
