@@ -54,37 +54,27 @@ write_files:
     content: |
       FROM  gcr.io/scl-image-builder/cluster-node-image-builder-amd64:dev
 
-      # Update certificate store
       USER root
       
+      # Update certificate store
       # Fetch the server cert and place it in the CA certificates directory
       RUN openssl s_client -servername pve.lab -connect ${PROXMOX_IP}:8006 </dev/null 2>/dev/null | \
           openssl x509 -outform PEM > /usr/local/share/ca-certificates/pve.lab.crt && \
           update-ca-certificates
       
       USER imagebuilder
-      # Keep original entrypoint
-  - path: /cluster-api/make-image-builder-image.sh
-    permissions: '0755'
-    content: |
-      #!/bin/bash
-      set -euo pipefail
-
-      # Build the image builder Docker image
-      cd /cluster-api/image-builder/images/capi
-      sudo make docker-build
       
-      # Build the image with the our Proxmox CA cert added
-      cd /cluster-api
-      sudo docker build . -t image-builder-with-pve-crt
-
+      # Keep original entrypoint
   - path: /cluster-api/build-cluster-api-vm.sh
     permissions: '0755'
     content: |
       #!/bin/bash
       set -euo pipefail
+  
+      echo "Waiting for cloud-init to complete..."
+      cloud-init status --wait
       
-      # Run the image builder for Kubernetes Cluster API
+      echo "Running the image builder for Kubernetes Cluster API VM"
       sudo docker run -it --rm --net=host --env-file proxmox.env \
         -v ./proxmox_packer_overrides.json:/home/imagebuilder/proxmox_packer_overrides.json \
         -v /cluster-api:/home/imagebuilder/images/capi/downloaded_iso_path \
@@ -94,8 +84,16 @@ write_files:
       K8S_VERSION=$(cat proxmox_packer_overrides.json | jq -r '.kubernetes_semver')
       K8S_IMAGE_NAME=$(echo "ubuntu-2404-kube-${K8S_VERSION}")
       
-      return $K8S_IMAGE_NAME
+      echo "K8S_IMAGE_NAME: $K8S_IMAGE_NAME"
 runcmd:
   - mkdir -p /cluster-api
   - cd /cluster-api
   - git clone --depth 1 https://github.com/kubernetes-sigs/image-builder.git
+
+  # Build the image builder Docker image
+  - cd image-builder/images/capi
+  - make docker-build
+
+  # Add the Proxmox CA cert to the image
+  - cd /cluster-api
+  - docker build . -t image-builder-with-pve-crt

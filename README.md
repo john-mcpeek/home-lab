@@ -113,12 +113,12 @@ cd vms
 
 # Image builder builder VM
 cd vms
-./init-capi-image-builder-builder.sh $PROXMOX_IP
+./init-capi-image-builder.sh $PROXMOX_IP
 ```
 
 ## VM Creation Pattern
 
-All VMs clone from the base template (VM ID 9999):
+All non k8s capi VMs clone from the base template (VM ID 9999):
 
 ```bash
 

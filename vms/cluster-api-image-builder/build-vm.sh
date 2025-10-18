@@ -2,29 +2,21 @@
 
 export DNS_SERVER_IP=$1
 
-qm shutdown 8888
-qm destroy  8888
+qm shutdown 222
+qm destroy  222
 
-scp john@10.0.0.222:/cluster-api/proxmox_packer_overrides.json generated/proxmox_packer_overrides.json
+qm clone 9999 222 \
+  --name image-builder-builder \
+  --pool infra
 
-K8S_VERSION=$(cat generated/proxmox_packer_overrides.json | jq -r '.kubernetes_semver')
-capi_image_name=$(echo "ubuntu-2404-kube-${K8S_VERSION}")
-capi_vmid=$(qm list | grep "$capi_image_name" | awk '{print $1}')
-echo "capi image name: $capi_image_name"
-echo "capi VM ID: $capi_vmid"
+qm resize 222 scsi0 20G
 
-qm clone "$capi_vmid" 8888 \
-  --full \
-  --name capi-base \
-  --pool templates
+qm set 222 --cores 2
+qm set 222 --memory 4096
+qm set 222 --cicustom "user=local:snippets/user-data-image-builder.mime"
+qm set 222 --ipconfig0 "ip=10.0.0.222/24,gw=10.0.0.1"
+qm set 222 --nameserver "${DNS_SERVER_IP} 8.8.8.8"
+qm set 222 --tags "cluster-api image-builder-builder"
 
-qm set 8888 --cores 2
-qm set 8888 --memory 1024
-qm set 8888 --serial0 socket --vga serial0
-qm set 8888 --cicustom "user=local:snippets/user-data-capi.mime"
-qm set 8888 --ipconfig0 "ip=10.0.0.188/24,gw=10.0.0.1"
-qm set 8888 --nameserver "${DNS_SERVER_IP} 8.8.8.8"
-qm set 8888 --tags "base dns-self-register k8s cluster-api"
-
-qm start 8888
+qm start 222
 

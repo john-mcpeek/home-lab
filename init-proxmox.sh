@@ -30,5 +30,5 @@ cd vms
 ./init-base.sh "${PROXMOX_IP}"
 ./init-blank.sh "${PROXMOX_IP}"
 ./init-postgres.sh "${PROXMOX_IP}" "${POSTGRES_PASSWORD}"
-./init-capi-image-builder-builder.sh "${PROXMOX_IP}"
+./init-capi-image-builder.sh "${PROXMOX_IP}"
 #./init-capi-base-vm.sh "${PROXMOX_IP}"

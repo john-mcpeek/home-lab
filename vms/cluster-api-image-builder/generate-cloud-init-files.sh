@@ -1,28 +1,22 @@
 #!/usr/bin/env bash
 
+function build_vm_config() {
+    export HOST_NAME=$1
 
-function update_keys() {
-  envsubst '${HOST_NAME} ${MY_PUBLIC_KEY} ${ANSIBLE_PUBLIC_KEY} ${PROXMOX_ROOT_PUBLIC_KEY}' < cluster-api-image-builder/capi.yaml | tee generated/capi.yaml > /dev/null
+    envsubst '${HOST_NAME} ${PROXMOX_IP} ${PROXMOX_TOKEN}' < cluster-api-image-builder-builder/image-builder.yaml | tee generated/${HOST_NAME}.yaml > /dev/null
+
+    cloud-init devel make-mime \
+     -a generated/${HOST_NAME}.yaml:cloud-config \
+     > generated/user-data-${HOST_NAME}.mime
 }
 
-function dns_self_register() {
-  cloud-init devel make-mime \
-    -a generated/capi.yaml:cloud-config \
-    -a generated/base-dns-self-register.yaml:cloud-config \
-    > generated/user-data-capi.mime
-}
-
-export HOST_NAME=$1
-export MY_PUBLIC_KEY=$2
-export ANSIBLE_PUBLIC_KEY=$3
-
-PROXMOX_ROOT_PUBLIC_KEY=$(cat /root/.ssh/id_rsa.pub)
-export PROXMOX_ROOT_PUBLIC_KEY
+export PROXMOX_IP=$1
+PROXMOX_TOKEN=$(cat ~/image-builder.token | grep PROXMOX_TOKEN | cut -d'=' -f2-)
+export PROXMOX_TOKEN
 
 mkdir -p generated
 
-update_keys
-dns_self_register
+build_vm_config image-builder
 
 # Copy generated cloud-init files to snippets.
 cp -f generated/*.mime /var/lib/vz/snippets/
