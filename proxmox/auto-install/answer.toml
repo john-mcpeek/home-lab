@@ -1,0 +1,20 @@
+[global]
+keyboard = "en-us"
+country = "us"
+fqdn = "pve.lab"
+mailto = "admin@pve.lab"
+timezone = "America/New_York"
+root-password-hashed = "YOUR_ROOT_PASSWORD_HASH_HERE"
+
+[network]
+source = "from-answer"
+cidr = "10.0.0.10/24"
+dns = "1.1.1.1"
+gateway = "10.0.0.1"
+filter.ID_NET_NAME_MAC = "*380525330f95*"
+
+[disk-setup]
+filesystem = "ext4"
+disk-list = ["/dev/nvme0n1"]
+lvm.swapsize = 0
+lvm.maxvz = 0
