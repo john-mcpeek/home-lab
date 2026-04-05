@@ -17,3 +17,5 @@ filter.ID_NET_NAME_MAC = "*380525330f95*"
 filesystem = "ext4"
 disk-list = ["/dev/nvme0n1"]
 lvm.swapsize = 0
+lvm.maxvz = 0
+lvm.maxroot = 0

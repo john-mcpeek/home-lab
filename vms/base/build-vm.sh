@@ -21,12 +21,12 @@ qm create 9999 --name base-auto-dns \
   --core 2 \
   --pool templates
 
-# import the downloaded disk to the local-lvm storage, attaching it as a SCSI drive
-qm set 9999 --scsi0 local-lvm:0,ssd=1,discard=on,iothread=1,cache=none,import-from=/root/ubuntu-24.04-server-cloudimg-amd64.img
+# import the downloaded disk to local storage, attaching it as a SCSI drive
+qm set 9999 --scsi0 local:0,ssd=1,discard=on,iothread=1,cache=none,import-from=/root/ubuntu-24.04-server-cloudimg-amd64.img
 qm resize 9999 scsi0 10G
 
 qm set 9999 --cicustom "user=local:snippets/user-data-base-auto-dns.mime"
-qm set 9999 --ide2 local-lvm:cloudinit
+qm set 9999 --ide2 local:cloudinit
 qm set 9999 --boot order=scsi0
 qm set 9999 --serial0 socket --vga serial0
 qm set 9999 --ipconfig0 ip=dhcp

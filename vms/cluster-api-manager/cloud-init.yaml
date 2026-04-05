@@ -47,7 +47,7 @@ write_files:
       export PROXMOX_BRIDGE=vmbr0
       export PROXMOX_ISO_POOL=local
       export PROXMOX_NODE=pve
-      export PROXMOX_STORAGE_POOL=local-lvm
+      export PROXMOX_STORAGE_POOL=local
       export PROXMOX_TOKEN=${PROXMOX_SECRET}
       export PROXMOX_URL=https://${PROXMOX_IP}:8006/api2/json
       export PROXMOX_USERNAME=image-builder@pve!capi

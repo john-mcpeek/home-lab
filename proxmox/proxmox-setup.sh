@@ -40,7 +40,7 @@ function update_packages() {
   fi
 
   apt update
-  apt upgrade -y
+  apt full-upgrade -y
   apt install -y bind9 bind9-utils dnsutils \
     jq \
     vim \
@@ -301,6 +301,9 @@ function proxmox_miscellany() {
 
   # Setup snippet directory
   mkdir -p /var/lib/vz/snippets
+
+  # Enable VM disk image storage on local (required when lvm.maxvz = 0)
+  pvesm set local --content iso,vztmpl,backup,snippets,images
 
   echo "proxmox_miscellany - complete"
 }

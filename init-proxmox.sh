@@ -23,7 +23,12 @@ export PROXMOX_IP=$1
 export PROXMOX_PASSWORD=$(cat ./root-password)
 export POSTGRES_PASSWORD=$(cat ./postgres-password)
 
-ssh-copy-id -i ~/.ssh/id_ed25519 "root@${PROXMOX_IP}"
+if ! command -v sshpass &>/dev/null; then
+    sudo apt-get install -y sshpass
+fi
+ssh-keygen -R "${PROXMOX_IP}" || true
+ssh-keygen -F "${PROXMOX_IP}" &>/dev/null || ssh-keyscan -H "${PROXMOX_IP}" >> ~/.ssh/known_hosts
+sshpass -p "${PROXMOX_PASSWORD}" ssh-copy-id -i ~/.ssh/id_ed25519 "root@${PROXMOX_IP}"
 
 # Clean up, just in case.
 ssh "root@${PROXMOX_IP}" "rm -rf proxmox k8s vms"
@@ -44,8 +49,8 @@ ssh "root@${PROXMOX_IP}" "
 "
 
 # Setup VMs
-cd vms
-./init-base.sh "${PROXMOX_IP}"
-./init-blank.sh "${PROXMOX_IP}"
-./init-postgres.sh "${PROXMOX_IP}" "${POSTGRES_PASSWORD}"
-./init-capi-manager.sh "${PROXMOX_IP}"
+#cd vms
+#./init-base.sh "${PROXMOX_IP}"
+#./init-blank.sh "${PROXMOX_IP}"
+#./init-postgres.sh "${PROXMOX_IP}" "${POSTGRES_PASSWORD}"
+#./init-capi-manager.sh "${PROXMOX_IP}"

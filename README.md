@@ -51,7 +51,7 @@ ssh-keygen -R "10.0.0.10"
 
 - **Proxmox VE 9.x**
 - Network: 10.0.0.0/24 subnet with `vmbr0` bridge
-- Storage: `local-lvm` configured
+- Storage: `local` configured (`lvm.maxvz = 0`)
 - Ed25519 SSH key at `~/.ssh/id_ed25519`
 - Ansible SSH key auto-generated if missing
 - `./root-password` file containing the Proxmox root password
