@@ -1,158 +1,203 @@
 # Proxmox Home Lab Automation
 
-## Proxmox installation
+## Proxmox Installation
+
+There are two ways to install Proxmox VE:
+
+### Option A: Manual Installation
 
 - Install Proxmox VE 9.x Terminal UI
 - Agree to license terms
-- Target disk - `next`
+- Target disk — `next`
 - Region
-  - Country: `United States`
-  - Timezone: `America/New_York`
-  - Keyboard: `US English`
+    - Country: `United States`
+    - Timezone: `America/New_York`
+    - Keyboard: `US English`
 - Admin
-  - Password: `password123`
-  - Confirm: `password123`
-  - Email: `admin@pve.lab`
+    - Password: `password123`
+    - Confirm: `password123`
+    - Email: `admin@pve.lab`
 - Management Interface
-  - Hostname: `pve.lab`
-  - IP: `10.0.0.10`/`24`
-  - Gateway: `10.0.0.1`
-  - DNS: `1.1.1.1`
-- Install - `next`
-- When install completes, remove the USB drive, it will auto-reboot.
+    - Hostname: `pve.lab`
+    - IP: `10.0.0.10`/`24`
+    - Gateway: `10.0.0.1`
+    - DNS: `1.1.1.1`
+- Install — `next`
+- When install completes, remove the USB drive. It will auto-reboot.
 
-`**Note:**` If you have connected to pve.lab or 10.0.0.10 before,
-you will need to remove the existing ssh entry from `~/.ssh/known_hosts`
-```shell
+### Option B: Automated Installation (USB)
+
+Use `proxmox/auto-install/` to build a custom ISO that installs Proxmox unattended:
+
+```bash
+cd proxmox/auto-install
+# Edit answer.toml with your desired settings, then:
+./create-proxmox-auto-iso.sh
+# Flash the resulting ISO to a USB drive and boot the target machine from it.
+```
+
+The script downloads the latest Proxmox VE ISO, injects `answer.toml`, writes the result to a detected USB drive, and
+ejects it when done.
+
+---
+
+**Note:** If you have connected to `pve.lab` or `10.0.0.10` before, remove the old SSH entry first:
+
+```bash
 ssh-keygen -R "10.0.0.10"
 ```
 
-Automated infrastructure setup for a Proxmox-based home lab with DNS, VM templates, PostgreSQL, and infrastructure components.
-
 ## Prerequisites
 
-- **Proxmox VE 9.x** (required)
-- Network: 10.0.0.0/24 subnet with vmbr0 bridge
-- Storage: local-lvm storage configured
-- SSH access to Proxmox host
+- **Proxmox VE 9.x**
+- Network: 10.0.0.0/24 subnet with `vmbr0` bridge
+- Storage: `local-lvm` configured
 - Ed25519 SSH key at `~/.ssh/id_ed25519`
-- Ansible SSH key will be auto-generated if missing
+- Ansible SSH key auto-generated if missing
+- `./root-password` file containing the Proxmox root password
+- `./postgres-password` file containing the desired PostgreSQL password
 
 ## Quick Start
 
+Create the password files, then run the main init script:
+
 ```bash
-   ./init-proxmox.sh $PROXMOX_HOST_IP $PROXMOX_ROOT_PASSWORD $POSTGRES_PASSWORD
+echo "yourRootPassword" > ./root-password
+echo "yourPostgresPassword" > ./postgres-password
+./init-proxmox.sh 10.0.0.10
 ```
 
-**Example:**
-```bash
-   ./init-proxmox.sh 10.0.0.10 myRootPassword myPostgresPassword
-```
-
-1. You will be prompted to access the Proxmox instance as a known host.
-2. Then you will type the root password for the Proxmox instance when prompted.
-
+1. You will be prompted to accept the Proxmox host as a known SSH host.
+2. The script reads both passwords from their respective files — no interactive prompts after that.
 
 ## What Gets Created
 
-The initialization takes a few minutes and sets up:
+### Proxmox Host Configuration
 
-### Infrastructure
-- Proxmox subscription sources disabled
-- Proxmox no-subscription repositories enabled
+- Subscription repos disabled; no-subscription repos enabled
+- Packages installed: `bind9`, `jq`, `vim`, `snapd`, `cloud-init`, `apparmor-utils`
 - SSH keys copied to Proxmox host
 - Resource pools created: `infra`, `dev`, `uat`, `prod`, `templates`
-- `image-builder@pve` user with API token for Cluster API
+- `image-builder@pve` user with `capi` API token (token saved to `~/image-builder.token` on Proxmox)
+- Tag style configured (ordered, full-shape)
+- `/var/lib/vz/snippets` directory created for cloud-init snippets
 
 ### DNS Server
-- BIND9 DNS server configured on Proxmox host
-- Proxmox acts as authoritative DNS provider for `.lab`
-- `.lab` domain with dynamic DNS (DDNS) support
-- TSIG-secured DNS updates
+
+- BIND9 configured as authoritative for the `.lab` domain
+- Dynamic DNS (DDNS) with TSIG key at `/etc/bind/keys/ddns.key`
+- Static zone files in `/etc/bind/`; journal/writable files in `/var/lib/bind/`
+- AppArmor profile patched with `abi/4.0` header for unix socket rules
+- Proxmox host resolves as `pve.lab` / `10.0.0.10`
 
 ### Base VM Template (VM ID 9999)
-- Ubuntu 24.04 cloud image
-- QEMU guest agent enabled
-- SSH keys for `john` and `ansible` users installed
-- Auto-registers hostname with DNS on boot
-- **Note:** The base template automatically shuts down after creation. This enables unattended builds.
-  Clone the template and use a cloud-init "topper" script to override the shutdown behavior (see `blank` VM example).
 
-### Example VMs
+- Ubuntu 24.04 cloud image, 10GB disk, DHCP
+- QEMU guest agent, SSH keys for `john` and `ansible` users
+- Auto-registers hostname with DNS on boot via DDNS
+- **Auto-shuts down after first boot** so `qm template` can convert it unattended.
+  Clone it and use a cloud-init "topper" to override the shutdown (see `blank` VM example).
 
-#### Blank VM (VM ID 777)
-- Simple example in `dev` pool
-- Demonstrates how to use base template with cloud-init topper
-- 1 core, 1GB RAM, DHCP networking
+### VMs
 
-#### Image Builder (VM ID 222)
-- Cluster API image builder builder in `infra` pool
-- 2 cores, 4GB RAM, 20GB disk
-- Static IP: 10.0.0.222/24
+| VM                  | ID    | Pool      | Cores | RAM   | Disk   | IP              |
+|---------------------|-------|-----------|-------|-------|--------|-----------------|
+| Base template       | 9999  | templates | 2     | 2 GB  | 10 GB  | DHCP            |
+| Blank (example)     | 777   | dev       | 1     | 1 GB  | 10 GB  | DHCP            |
+| PostgreSQL          | 100   | dev       | 4     | 16 GB | 100 GB | 10.0.0.100/24   |
+| Cluster API Manager | 10000 | infra     | 2     | 2 GB  | 20 GB  | DHCP (auto-DNS) |
 
-#### PostgreSQL Server (VM ID 100)
-- PostgreSQL 18 server in `dev` pool
-- 4 cores, 16GB RAM, 100GB disk
-- Static IP: 10.0.0.100/24
-- **Note:** Commented out by default in `init-proxmox.sh` (line 33)
+#### Blank VM (ID 777)
+
+- Minimal example showing how to clone the base template with a cloud-init topper
+- Topper cancels the auto-shutdown so the VM stays running
+
+#### PostgreSQL (ID 100)
+
+- PostgreSQL 18 + pgvector
+- `scram-sha-256` authentication, listens on all interfaces (10.0.0.0/8 allowed)
+- `shared_buffers` tuned to 1 GB
+
+#### Cluster API Manager (ID 10000)
+
+- Bootstrap host for Cluster API + CAPMOX
+- Runs `kind` cluster with Cluster API controllers
+- Uses `image-builder@pve` token to provision Kubernetes node VMs on Proxmox
+- CAPI node VM IDs are derived from the Kubernetes version (e.g. `v1.35.3` → VM ID `101353`)
 
 ## Architecture
 
-### Network Configuration
+### Network
 
-- **Subnet**: 10.0.0.0/24
-- **Gateway**: 10.0.0.1
-- **DNS**: Proxmox host IP (primary), 75.75.75.75 or 8.8.8.8 (fallback)
-- **Bridge**: vmbr0
+| Setting        | Value                    |
+|----------------|--------------------------|
+| Subnet         | 10.0.0.0/24              |
+| Gateway        | 10.0.0.1                 |
+| Bridge         | vmbr0                    |
+| DNS (primary)  | Proxmox host (10.0.0.10) |
+| DNS (fallback) | 8.8.8.8                  |
 
 ### Directory Structure
 
 ```
 .
-├── init-proxmox.sh              # Main initialization script
+├── init-proxmox.sh                  # Main entry point — runs all init-*.sh scripts
+├── root-password                    # Proxmox root password (gitignored)
+├── postgres-password                # PostgreSQL password (gitignored)
+├── Reset-DNS.ps1                    # Windows: reset DNS to DHCP
+├── Set-StaticIPandDNS.ps1           # Windows: set static IP and point DNS at lab
 ├── proxmox/
-│   ├── proxmox-setup.sh         # Proxmox configuration
-│   └── dns/                     # DNS zone files and BIND config
+│   ├── proxmox-setup.sh             # Runs on Proxmox: repos, packages, BIND9, pools, users
+│   ├── auto-install/
+│   │   ├── answer.toml              # Unattended install config (root hash filled in by init-proxmox.sh)
+│   │   └── create-proxmox-auto-iso.sh  # Builds a bootable auto-install USB ISO
+│   └── dns/
+│       ├── named.conf.local         # BIND9 zone declarations + DDNS policy
+│       ├── named.conf.options       # BIND9 options (forwarders, recursion)
+│       ├── db.lab                   # Forward zone template for .lab
+│       ├── db.10.0.0                # Reverse zone template for 10.0.0.x
+│       ├── resolv.conf              # resolv.conf template (points to Proxmox)
+│       └── apparmor-named-local     # AppArmor local override for named
+├── k8s/
+│   └── cluster-api/
+│       ├── k8s_utils.sh             # Shared functions: k8s version, CAPI version, VM ID derivation
+│       ├── clusterctl.yaml          # clusterctl config for CAPMOX
+│       ├── kind-cluster-with-extramounts.yaml
+│       └── proxmox-env.sh           # CAPMOX environment variables
 └── vms/
-    ├── init-base.sh             # Base template creation
-    ├── init-blank.sh            # Example Blank VM
-    ├── init-postgres.sh         # PostgreSQL VM
-    ├── init-capi-manager.sh     # Cluster API manager VM
-    ├── base/                    # Base template files
-    ├── blank/                   # Blank VM files
-    ├── postgres/                # PostgreSQL VM files
-    └── cluster-api-manager/     # Cluster API manager files
+    ├── init-base.sh                 # Creates base template (VM 9999)
+    ├── init-blank.sh                # Creates blank example VM (VM 777)
+    ├── init-postgres.sh             # Creates PostgreSQL VM (VM 100)
+    ├── init-capi-manager.sh         # Creates Cluster API Manager VM (VM 10000)
+    ├── base/                        # Base template cloud-init files
+    ├── blank/                       # Blank VM cloud-init files
+    ├── postgres/                    # PostgreSQL VM cloud-init files
+    └── cluster-api-manager/         # Cluster API Manager cloud-init files
 ```
 
 ## Individual Component Setup
 
-You can run individual components instead of the full initialization:
-
 ```bash
+cd vms
 
 # Base template only
-cd vms
 ./init-base.sh $PROXMOX_IP
 
 # Blank VM only
-cd vms
 ./init-blank.sh $PROXMOX_IP
 
-# PostgreSQL VM
-cd vms
+# PostgreSQL VM (reads password from ../postgres-password)
 ./init-postgres.sh $PROXMOX_IP $POSTGRES_PASSWORD
 
-# Cluster API manager VM
-cd vms
+# Cluster API Manager
 ./init-capi-manager.sh $PROXMOX_IP
 ```
 
 ## VM Creation Pattern
 
-All non k8s capi VMs clone from the base template (VM ID 9999):
+All VMs clone from the base template (VM ID 9999):
 
 ```bash
-
 # Clone template
 qm clone 9999 <VM_ID> --name <VM_NAME> --pool <POOL>
 
@@ -160,88 +205,87 @@ qm clone 9999 <VM_ID> --name <VM_NAME> --pool <POOL>
 qm set <VM_ID> --cores <CORES>
 qm set <VM_ID> --memory <MEMORY_MB>
 
-# Optional: resize disk
+# Resize disk (optional)
 qm resize <VM_ID> scsi0 <SIZE>G
 
-# Set cloud-init topper
+# Attach cloud-init topper
 qm set <VM_ID> --cicustom "user=local:snippets/<your-cloud-init>.mime"
 
 # Configure networking
-qm set <VM_ID> --ipconfig0 "ip=10.0.0.<IP>/24,gw=10.0.0.1"
+qm set <VM_ID> --ipconfig0 "ip=10.0.0.<LAST_OCTET>/24,gw=10.0.0.1"
 qm set <VM_ID> --nameserver "<DNS_IP> 8.8.8.8"
 
-# Add tags
-qm set <VM_ID> --tags "tag1,tag2"
-
-# Start VM
+# Add tags and start
+qm set <VM_ID> --tags "tag1 tag2"
 qm start <VM_ID>
+```
+
+VM IDs match the last octet of their static IP for easy identification.
+
+## Windows Host Setup
+
+Two PowerShell scripts configure the Windows host to use the lab's DNS:
+
+```powershell
+# Point the active NIC at the lab DNS server
+.\Set-StaticIPandDNS.ps1
+
+# Revert — reset the NIC back to DHCP
+.\Reset-DNS.ps1
 ```
 
 ## DNS Testing
 
 ```bash
-
-# Test forward lookup
+# Forward lookup
 dig @10.0.0.10 pve.lab
 
-# Test reverse lookup
+# Reverse lookup
 dig @10.0.0.10 -x 10.0.0.10
+
+# From Proxmox host itself
+dig @localhost pve.lab
+named-checkzone lab /var/lib/bind/db.lab
+named-checkzone 0.0.10.in-addr.arpa /var/lib/bind/db.10.0.0
 ```
 
 ## SSH Access
 
 ```bash
-
-# Personal user
 ssh john@<VM_IP>
-
-# Ansible user (key auto-generated during init-base.sh)
 ssh -i ~/.ssh/ansible ansible@<VM_IP>
 ```
 
 ## Troubleshooting
 
-### DNS Issues
+### BIND9 Not Starting
 
 ```bash
-
-# Check BIND status
 systemctl status named
-
-# Verify zone files
-named-checkzone lab /var/lib/bind/db.lab
-named-checkzone 0.0.10.in-addr.arpa /var/lib/bind/db.10.0.0
-
-# Test DNS
-dig @localhost pve.lab
+journalctl -u named --no-pager | tail -30
+apparmor_parser -r /etc/apparmor.d/usr.sbin.named
 ```
 
 ### Base Template Auto-Shutdown
 
-The base template is designed to shut down automatically after initial setup. This is expected behavior. To use the template, clone it and override the shutdown with a cloud-init topper (see `vms/blank/generate-cloud-init-files.sh`).
+Expected behavior — the template shuts down after first boot so `qm template` can convert it unattended. Clone the
+template and include a cloud-init topper that overrides the shutdown (see `vms/blank/`).
 
 ### Cloud-init Not Applying
 
 ```bash
-
-# Verify snippet exists
+# Verify snippet is present
 ls -la /var/lib/vz/snippets/
 
 # Check VM config
 qm config <VM_ID>
 
-# Update cloud-init
+# Force regenerate
 qm cloudinit update <VM_ID>
 ```
 
-## Future Components
+### DDNS Key Rotation
 
-See `home-lab-components.md` for planned additions:
-- HCP Vault
-- Artifactory
-- HA Kubernetes
-- Ceph Storage
-- Grafana/Prometheus
-- ArgoCD
-- Kiali/Thanos
-- SSO
+The TSIG key at `/etc/bind/keys/ddns.key` is generated once and never rotated by `proxmox-setup.sh` (re-running skips
+generation if the file exists). Rotating the key invalidates the secret baked into existing VM templates — rebuild
+templates after a rotation.
