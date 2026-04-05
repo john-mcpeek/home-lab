@@ -35,15 +35,6 @@ export CAPI_API_VERSION
 CAPI_NODE_VM_ID="101352"
 export CAPI_NODE_VM_ID
 
-if [ -n "$1" ]; then
-  K8S_VERSION=$1
-else
-  K8S_VERSION=1.35.2
-fi
-export K8S_VERSION
-K8S_SERIES=$(echo "${K8S_VERSION}" | cut -d. -f1-2)
-export K8S_SERIES
-
 ssh "root@${PROXMOX_IP}" "rm -rf vms/cluster-api-manager/*"
 
 scp -r cluster-api-manager/ "root@${PROXMOX_IP}":~/vms

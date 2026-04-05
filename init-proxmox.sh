@@ -39,8 +39,8 @@ ssh "root@${PROXMOX_IP}" "
 "
 
 # Setup VMs
-#cd vms
-#./init-base.sh "${PROXMOX_IP}"
-#./init-blank.sh "${PROXMOX_IP}"
-#./init-postgres.sh "${PROXMOX_IP}" "${POSTGRES_PASSWORD}"
-#./init-capi-manager.sh "${PROXMOX_IP}"
+cd vms
+./init-base.sh "${PROXMOX_IP}"
+./init-blank.sh "${PROXMOX_IP}"
+./init-postgres.sh "${PROXMOX_IP}" "${POSTGRES_PASSWORD}"
+./init-capi-manager.sh "${PROXMOX_IP}"

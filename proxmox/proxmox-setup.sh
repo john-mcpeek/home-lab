@@ -76,8 +76,13 @@ function configure_lab_dns_zone() {
   chown -R bind:bind /var/lib/bind
   chmod 775 /var/lib/bind
 
-  # Generate a TSIG key for DDNS
-  tsig-keygen -a hmac-sha256 ddns-key | tee /etc/bind/keys/ddns.key >/dev/null
+  # Generate a TSIG key for DDNS (only if not already present — rotating the key
+  # invalidates the secret baked into existing VM templates)
+  if [ ! -f /etc/bind/keys/ddns.key ]; then
+    tsig-keygen -a hmac-sha256 ddns-key | tee /etc/bind/keys/ddns.key >/dev/null
+  else
+    echo "DDNS key already exists, skipping generation"
+  fi
   chown root:bind /etc/bind/keys/ddns.key
   chmod 640 /etc/bind/keys/ddns.key
 
