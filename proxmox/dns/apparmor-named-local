@@ -1,0 +1,2 @@
+/run/systemd/notify w,
+/proc/version_signature r,

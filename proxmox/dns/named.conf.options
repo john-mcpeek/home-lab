@@ -1,0 +1,25 @@
+options {
+    directory "/var/cache/bind";
+
+    // Listen everywhere on this box
+    listen-on { any; };
+    listen-on-v6 { any; };
+
+    // Allow queries from any client (authoritative and non-authoritative)
+    allow-query { any; };
+
+    // Allow access to the cache for any client (enables caching for any domain)
+    allow-query-cache { any; };
+    recursion yes;
+    allow-recursion { any; };
+
+    // Upstream resolvers for anything outside lab.
+    forwarders {
+        1.1.1.1;
+        9.9.9.9;
+    };
+
+    dnssec-validation auto;
+    auth-nxdomain no;
+    minimal-responses yes;
+};

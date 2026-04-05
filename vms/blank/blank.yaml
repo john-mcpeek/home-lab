@@ -1,0 +1,17 @@
+#Cloud-config
+merge_how:
+  - name: list
+    settings: [ append ]
+  - name: dict
+    settings: [ no_replace, recurse_list ]
+
+hostname: ${HOST_NAME}
+
+package_update: true
+package_upgrade: true
+package_reboot_if_required: true
+
+runcmd:
+  - echo "Blank Ubuntu cloud init complete"
+
+

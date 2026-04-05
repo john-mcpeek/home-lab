@@ -1,0 +1,12 @@
+$TTL 300
+@   IN  SOA  pve.lab. root.lab. (
+        2025091401
+        3600
+        1800
+        604800
+        300 )
+
+    IN  NS   pve.lab.
+
+; PTR for the host itself (${PROXMOX_IP} -> pve.lab.)
+${PROXMOX_IP_LAST_OCTET}  IN  PTR  pve.lab.

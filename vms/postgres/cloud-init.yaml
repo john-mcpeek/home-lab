@@ -1,0 +1,95 @@
+#Cloud-config
+merge_how:
+  - name: list
+    settings: [ append ]
+  - name: dict
+    settings: [ no_replace, recurse_list ]
+
+hostname: ${HOST_NAME}
+
+package_update: true
+package_upgrade: true
+package_reboot_if_required: true
+
+apt:
+  preserve_sources_list: true
+  sources:
+    postgresql:
+      source: deb http://apt.postgresql.org/pub/repos/apt/ $RELEASE-pgdg main
+      keyid: B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
+
+packages:
+  - postgresql-18
+  - postgresql-18-pgvector
+  - postgresql-contrib
+  - ufw
+
+write_files:
+  - path: /etc/tmpfiles.d/disable-thp.conf
+    owner: root:root
+    permissions: '0644'
+    content: |
+      w /sys/kernel/mm/transparent_hugepage/enabled - - - - never
+      w /sys/kernel/mm/transparent_hugepage/defrag - - - - never
+
+  - path: /etc/sysctl.d/99-postgres.conf
+    owner: root:root
+    permissions: '0644'
+    content: |
+      vm.swappiness = 1
+      vm.dirty_background_ratio = 5
+      vm.dirty_ratio = 20
+      vm.max_map_count = 262144
+      net.core.somaxconn = 1024
+      fs.inotify.max_user_watches = 524288
+      kernel.shmmax = 134217728  # 128 MB
+      kernel.shmall = 32768      # 128 MB / 4 KB
+      kernel.shmmni = 4096
+
+  - path: /usr/local/sbin/provision_postgres.sh
+    permissions: "0755"
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      
+      # Determine PostgreSQL version
+      PG_VERSION=$(ls /etc/postgresql/ | head -1)
+      PG_CONF="/etc/postgresql/${PG_VERSION}/main/postgresql.conf"
+      PG_HBA="/etc/postgresql/${PG_VERSION}/main/pg_hba.conf"
+      
+      # Configure listen_addresses to all interfaces
+      sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" "${PG_CONF}"
+      
+      # Set password_encryption to scram-sha-256
+      sed -i "s/#password_encryption = md5/password_encryption = scram-sha-256/" "${PG_CONF}"
+      
+      # Set shared_buffers to 1GB
+      sed -i "s/shared_buffers = 128MB/shared_buffers = 1GB/" "${PG_CONF}"
+
+      # Allow connections from any IP with MD5 password authentication
+      # WARNING: This is insecure for production; restrict to specific IPs as needed
+      echo "host    all             all             10.0.0.0/8             scram-sha-256" >> "${PG_HBA}"
+
+      # Restart PostgreSQL
+      systemctl restart postgresql
+
+      # Enable UFW if present and allow PostgreSQL port
+      if command -v ufw >/dev/null 2>&1; then
+        echo "Enabling UFW firewall"
+        ufw --force enable
+        echo "Exposing PostgreSQL port (5432/tcp) and SSH port (22/tcp)"
+        ufw allow 5432/tcp  # PostgreSQL port
+        ufw allow 22/tcp    # SSH port
+      fi
+      
+      # Optional: Create user and database with SCRAM-SHA-256 password
+      sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD '${POSTGRES_PASSWORD}';"
+      # sudo -u postgres psql -c "CREATE USER myuser WITH PASSWORD 'mypassword';"
+      # sudo -u postgres psql -c "CREATE DATABASE mydb OWNER myuser;"
+
+runcmd:
+  - systemd-tmpfiles --create /etc/tmpfiles.d/disable-thp.conf
+  - /usr/local/sbin/provision_postgres.sh
+
+

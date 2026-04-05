@@ -1,0 +1,19 @@
+// TSIG key used by clients (VMs) for dynamic updates
+include "/etc/bind/keys/ddns.key";
+
+// Authoritative forward zone for lab.
+// Zone file is in /var/lib/bind/ so BIND9 can write journal (.jnl) files
+// for dynamic DNS updates under AppArmor enforce mode.
+zone "lab" {
+    type master;
+    file "/var/lib/bind/db.lab";
+    // Allow secure dynamic updates (A/AAAA) from clients that hold ddns-key
+    allow-update { key "ddns-key"; };
+};
+
+// Authoritative reverse zone for 10.0.0.0/24 (optional but recommended)
+zone "0.0.10.in-addr.arpa" {
+    type master;
+    file "/var/lib/bind/db.10.0.0";
+    allow-update { key "ddns-key"; };
+};
