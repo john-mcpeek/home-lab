@@ -26,14 +26,22 @@ fi
 #export ANSIBLE_PUBLIC_KEY
 
 source "$(dirname "$0")/../k8s/cluster-api/k8s_utils.sh"
+
 K8S_VERSION=$(get_k8s_version)
 export K8S_VERSION
+echo "K8S_VERSION: ${K8S_VERSION}"
+
 K8S_SERIES=$(get_k8s_series "${K8S_VERSION}")
 export K8S_SERIES
+echo "K8S_SERIES: ${K8S_SERIES}"
+
 CAPI_API_VERSION=$(get_capi_version)
 export CAPI_API_VERSION
-CAPI_NODE_VM_ID="101352"
+echo "CAPI_API_VERSION: ${CAPI_API_VERSION}"
+
+CAPI_NODE_VM_ID=$(get_capi_node_vm_id "${K8S_VERSION}")
 export CAPI_NODE_VM_ID
+echo "CAPI_NODE_VM_ID: ${CAPI_NODE_VM_ID}"
 
 ssh "root@${PROXMOX_IP}" "rm -rf vms/cluster-api-manager/*"
 
@@ -89,3 +97,7 @@ else
 fi
 
 echo "$0 complete"
+
+echo "Cycling cluster-api-manager to free space"
+ssh "root@${PROXMOX_IP}" "qm shutdown 10000"
+ssh "root@${PROXMOX_IP}" "qm start 10000"

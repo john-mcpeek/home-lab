@@ -3,9 +3,9 @@ set -euo pipefail
 
 # Check if no arguments are provided
 if [ $# -eq 0 ]; then
-    echo "Usage: $0 PROXMOX_IP POSTGRES_PASSWORD"
-    echo "Description: This script requires two arguments to proceed. The Proxmox root password is read from ./root-password."
-    echo "Example: $0 10.0.0.10 postgres_password"
+    echo "Usage: $0 PROXMOX_IP"
+    echo "Description: This script requires one argument to proceed. The Proxmox root password is read from ./root-password and the Postgres password from ./postgres-password."
+    echo "Example: $0 10.0.0.10"
     exit 1
 fi
 
@@ -14,9 +14,14 @@ if [ ! -f ./root-password ]; then
     exit 1
 fi
 
+if [ ! -f ./postgres-password ]; then
+    echo "Error: ./postgres-password file not found. Create it with the Postgres password."
+    exit 1
+fi
+
 export PROXMOX_IP=$1
 export PROXMOX_PASSWORD=$(cat ./root-password)
-export POSTGRES_PASSWORD=$2
+export POSTGRES_PASSWORD=$(cat ./postgres-password)
 
 ssh-copy-id -i ~/.ssh/id_ed25519 "root@${PROXMOX_IP}"
 

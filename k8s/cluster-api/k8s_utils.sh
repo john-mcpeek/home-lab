@@ -15,6 +15,15 @@ function get_k8s_series() {
   echo "${K8S_SERIES}"
 }
 
+function get_capi_node_vm_id() {
+  local version="${1:-${K8S_VERSION:-}}"
+  # Strip leading 'v' and dots, then prepend '10'
+  # e.g. v1.35.3 -> 101353
+  local digits
+  digits=$(echo "${version}" | sed 's/^v//; s/\.//g')
+  echo "10${digits}"
+}
+
 function get_capi_version() {
   if [ -z "${CAPI_VERSION:-}" ]; then
     CAPI_VERSION=$(curl -fsSL https://api.github.com/repos/kubernetes-sigs/cluster-api/releases/latest | jq -r '.tag_name')

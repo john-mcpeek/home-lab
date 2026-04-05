@@ -1,4 +1,5 @@
-root-password
+/root-password
+/postgres-password
 
 HELP.md
 target/
