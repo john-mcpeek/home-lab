@@ -82,6 +82,18 @@ if [ "$CONNECT_STATUS" = "true" ]; then
   echo "Waiting for cloud-init to complete..."
   ssh "$USER@$HOST" "sudo cloud-init status --wait" || true
 
+  echo "Waiting for VM to be reachable after cloud-init reboot..."
+  ssh-keygen -R "$HOST" 2>/dev/null || true
+  post_ci_start=$(date +%s)
+  until ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o BatchMode=yes \
+        "$USER@$HOST" "true" 2>/dev/null; do
+    if [ $(( $(date +%s) - post_ci_start )) -ge $TIMEOUT ]; then
+      echo "Timed out waiting for $HOST after cloud-init reboot."
+      exit 1
+    fi
+    sleep $INTERVAL
+  done
+
   echo "Checking if CAPI base image VM (${CAPI_NODE_VM_ID}) already exists..."
   if ssh "root@${PROXMOX_IP}" "qm status ${CAPI_NODE_VM_ID}" &>/dev/null; then
     echo "VM ${CAPI_NODE_VM_ID} already exists, skipping image build."
@@ -91,6 +103,9 @@ if [ "$CONNECT_STATUS" = "true" ]; then
   fi
 
   ssh "root@${PROXMOX_IP}" "qm set ${CAPI_NODE_VM_ID} --tags 'k8s capi_template'"
+
+  echo "Copying CAPI cluster setup script."
+  scp -r "$(dirname "$0")/../k8s" "$USER@$HOST":/cluster-api
 else
   echo "$HOST was not accessible in the ${INTERVAL}s."
   exit 1
