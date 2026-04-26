@@ -12,7 +12,7 @@ Local machine
             └─ Builds Proxmox Ubuntu K8s VM template (e.g. VM 101353 for v1.35.3)
 
 cluster-api-manager VM  <-- you are here
-  └─ k8s/claude-capi/init-capi-cluster.sh
+  └─ k8s/cluster-capi/init-capi-cluster.sh
        ├─ Creates Kind bootstrap cluster (Docker-in-Docker)
        ├─ Installs CAPI + CAPMOX + in-cluster IPAM into Kind
        ├─ Provisions workload cluster VMs in Proxmox
@@ -51,7 +51,7 @@ Before running `init-capi-cluster.sh`:
 
 ```bash
 ssh john@cluster-api-manager.lab
-cd ~/home-lab/k8s/claude-capi
+cd ~/home-lab/k8s/cluster-capi
 ./init-capi-cluster.sh
 ```
 
@@ -203,6 +203,6 @@ Note: `kubectl delete -f /tmp/capi-cluster-cluster.yaml` may leave orphaned IPAM
 |---|---|
 | `init-proxmox.sh` | Bootstraps the entire Proxmox host (packages, DNS, pools, image-builder user) |
 | `vms/init-capi-manager.sh` | Provisions the cluster-api-manager VM and builds the K8s VM template |
-| `k8s/cluster-api/k8s_utils.sh` | Utility functions sourced by this script (`get_k8s_version`, `get_capi_node_vm_id`) |
+| `k8s/utils/k8s_utils.sh` | Utility functions sourced by this script (`get_k8s_version`, `get_capi_node_vm_id`) |
 | `k8s/cluster-api/clusterctl.yaml` | Provider registration and default variable values; copied to `~/.cluster-api/` |
 | `k8s/cluster-api/kind-cluster-with-extramounts.yaml` | Kind cluster configuration used for the bootstrap cluster |

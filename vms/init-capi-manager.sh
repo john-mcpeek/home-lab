@@ -25,7 +25,7 @@ fi
 #ANSIBLE_PUBLIC_KEY=$(cat ~/.ssh/ansible.pub)
 #export ANSIBLE_PUBLIC_KEY
 
-source "$(dirname "$0")/../k8s/cluster-api/k8s_utils.sh"
+source "$(dirname "$0")/../k8s/utils/k8s_utils.sh"
 
 K8S_VERSION=$(get_k8s_version)
 export K8S_VERSION

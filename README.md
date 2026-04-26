@@ -160,7 +160,8 @@ echo "yourPostgresPassword" > ./postgres-password
 │       └── apparmor-named-local     # AppArmor local override for named
 ├── k8s/
 │   └── cluster-api/
-│       ├── k8s_utils.sh             # Shared functions: k8s version, CAPI version, VM ID derivation
+│   ├── utils/
+│   │   └── k8s_utils.sh             # Shared functions: k8s version, CAPI version, VM ID derivation
 │       ├── clusterctl.yaml          # clusterctl config for CAPMOX
 │       ├── kind-cluster-with-extramounts.yaml
 │       └── proxmox-env.sh           # CAPMOX environment variables

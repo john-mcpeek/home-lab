@@ -8,7 +8,7 @@ set -euo pipefail
 #
 # Run this script on the cluster-api-manager VM:
 #   ssh john@cluster-api-manager.lab
-#   cd ~/home-lab/k8s/claude-capi && ./init-capi-cluster.sh
+#   cd ~/home-lab/k8s/cluster-capi && ./init-capi-cluster.sh
 # =============================================================================
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -179,8 +179,8 @@ load_proxmox_secret
 # =============================================================================
 log_section "Computing cluster configuration"
 
-# shellcheck source=../cluster-api/k8s_utils.sh
-source "${SCRIPT_DIR}/../cluster-api/k8s_utils.sh"
+# shellcheck source=../utils/k8s_utils.sh
+source "${SCRIPT_DIR}/../utils/k8s_utils.sh"
 
 K8S_VERSION="${K8S_VERSION:-$(get_k8s_version)}"
 K8S_VERSION="v${K8S_VERSION#v}"  # ensure leading 'v'
