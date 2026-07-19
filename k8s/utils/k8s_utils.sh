@@ -5,14 +5,40 @@ function get_k8s_version() {
     K8S_VERSION=$(curl -fsSL https://dl.k8s.io/release/stable.txt | sed 's/^v//')
     echo "${K8S_VERSION}"
   else
-    echo "${K8S_VERSION}"
+    # Allow callers to pass v1.36.2 or 1.36.2
+    echo "${K8S_VERSION#v}"
   fi
 }
 
 function get_k8s_series() {
-  K8S_VERSION=$1
-  K8S_SERIES=$(echo "${K8S_VERSION}" | cut -d. -f1-2)
-  echo "${K8S_SERIES}"
+  local version=${1#v}
+  echo "${version}" | cut -d. -f1-2
+}
+
+# Resolve the pkgs.k8s.io deb package version for kubelet (e.g. 1.36.2-2.1).
+# Stable release tags and apt package revision suffixes are not always "-1.1"
+# (1.36.2 published as 1.36.2-2.1). Hardcoding "-1.1" causes Packer/Ansible to
+# fail with: no available installation candidate for kubelet=X.Y.Z-1.1
+function get_k8s_deb_version() {
+  local version=${1#v}
+  local series
+  series=$(get_k8s_series "${version}")
+  local packages_url="https://pkgs.k8s.io/core:/stable:/v${series}/deb/Packages"
+  local deb_version
+  deb_version=$(
+    curl -fsSL "${packages_url}" | awk -v ver="${version}" '
+      $1 == "Package:" && $2 == "kubelet" { want = 1; next }
+      want && $1 == "Version:" {
+        if ($2 ~ ("^" ver "-")) print $2
+        want = 0
+      }
+    ' | sort -V | tail -n1
+  )
+  if [ -z "${deb_version}" ]; then
+    echo "ERROR: no kubelet package matching ${version}-* at ${packages_url}" >&2
+    return 1
+  fi
+  echo "${deb_version}"
 }
 
 function get_capi_node_vm_id() {

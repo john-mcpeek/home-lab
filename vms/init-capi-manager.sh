@@ -35,6 +35,11 @@ K8S_SERIES=$(get_k8s_series "${K8S_VERSION}")
 export K8S_SERIES
 echo "K8S_SERIES: ${K8S_SERIES}"
 
+# Fail fast if pkgs.k8s.io has no matching kubelet deb (avoids a long Packer fail).
+K8S_DEB_VERSION=$(get_k8s_deb_version "${K8S_VERSION}")
+export K8S_DEB_VERSION
+echo "K8S_DEB_VERSION: ${K8S_DEB_VERSION}"
+
 CAPI_API_VERSION=$(get_capi_version)
 export CAPI_API_VERSION
 echo "CAPI_API_VERSION: ${CAPI_API_VERSION}"

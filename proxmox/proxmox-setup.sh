@@ -93,6 +93,12 @@ function configure_lab_dns_zone() {
   cp -f generated/dns/db.10.0.0 /var/lib/bind/db.10.0.0
   chown bind:bind /var/lib/bind/db.lab /var/lib/bind/db.10.0.0
 
+  # Dynamic zones (allow-update) keep journal files next to the zone. Overwriting
+  # db.lab / db.10.0.0 without removing the old .jnl leaves BIND with
+  # "journal out of sync with zone" and the zone fails to load (SERVFAIL for
+  # pve.lab while reverse/other zones may still work). Drop journals on redeploy.
+  rm -f /var/lib/bind/db.lab.jnl /var/lib/bind/db.10.0.0.jnl
+
   named-checkconf
   named-checkzone lab /var/lib/bind/db.lab
   named-checkzone 0.0.10.in-addr.arpa /var/lib/bind/db.10.0.0
@@ -116,16 +122,27 @@ function configure_lab_dns_zone() {
   fi
 
   echo "Enabling named"
-  systemctl restart named || true
-  systemctl status named || true
+  systemctl enable named
+  systemctl restart named
+  systemctl --no-pager --full status named
 
-  # Test DNS
-  echo "expect: ${PROXMOX_IP}"
-  dig "@${PROXMOX_IP}" "$(hostname).lab" +short || true
-  # expect: 10.0.0.10
-  echo "expect: $(hostname).lab"
-  dig "@${PROXMOX_IP}" -x "${PROXMOX_IP}" +short || true
-  # expect: pve.lab.
+  # Hard checks — fail setup if lab DNS is not answering (do not ignore errors)
+  echo "Testing forward lookup: dig @${PROXMOX_IP} pve.lab (expect ${PROXMOX_IP})"
+  FORWARD_RESULT=$(dig "@${PROXMOX_IP}" pve.lab +short | head -n1 || true)
+  if [ "${FORWARD_RESULT}" != "${PROXMOX_IP}" ]; then
+    echo "ERROR: dig @${PROXMOX_IP} pve.lab returned '${FORWARD_RESULT}', expected '${PROXMOX_IP}'"
+    echo "Check: systemctl status named; journalctl -u named --no-pager | tail -40"
+    exit 1
+  fi
+  echo "  OK: pve.lab -> ${FORWARD_RESULT}"
+
+  echo "Testing reverse lookup: dig @${PROXMOX_IP} -x ${PROXMOX_IP} (expect pve.lab.)"
+  REVERSE_RESULT=$(dig "@${PROXMOX_IP}" -x "${PROXMOX_IP}" +short | head -n1 || true)
+  if [ "${REVERSE_RESULT}" != "pve.lab." ]; then
+    echo "ERROR: reverse lookup returned '${REVERSE_RESULT}', expected 'pve.lab.'"
+    exit 1
+  fi
+  echo "  OK: ${PROXMOX_IP} -> ${REVERSE_RESULT}"
 
   cp -f generated/dns/resolv.conf /etc/resolv.conf
 

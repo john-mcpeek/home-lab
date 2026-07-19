@@ -11,14 +11,17 @@ This is a Proxmox-based home lab automation repository that sets up a complete i
 ### Initial Setup
 ```bash
 
-# Main initialization - sets up entire Proxmox environment
-./init-proxmox.sh $PROXMOX_HOST_IP $PROXMOX_ROOT_PASSWORD $POSTGRES_PASSWORD
+# Main initialization - passwords from ./root-password and ./postgres-password
+./init-proxmox.sh $PROXMOX_HOST_IP
+./init-proxmox.sh $PROXMOX_HOST_IP --force-rebuild-base   # recreate template 9999
+./init-proxmox.sh $PROXMOX_HOST_IP --nuke-vms --force-rebuild-base  # wipe lab VMs + base
 
 # Individual component initialization (called by init-proxmox.sh)
-./vms/init-base.sh $PROXMOX_IP          # Creates base VM template
-./vms/init-blank.sh $PROXMOX_IP         # Creates blank VM example
-./vms/init-kubespray.sh $PROXMOX_IP     # Sets up Kubernetes VMs
-./vms/init-postgres.sh $PROXMOX_IP $POSTGRES_PASSWORD  # Sets up PostgreSQL VM
+./vms/init-base.sh $PROXMOX_IP                 # Creates base VM template (skips if 9999 exists)
+./vms/init-base.sh $PROXMOX_IP --force-rebuild # Force recreate template
+./vms/init-blank.sh $PROXMOX_IP                # Creates blank VM example (full clone)
+./vms/init-postgres.sh $PROXMOX_IP $POSTGRES_PASSWORD  # Sets up PostgreSQL VM (full clone)
+./vms/init-capi-manager.sh $PROXMOX_IP         # Cluster API manager (full clone)
 ```
 
 ### DNS Validation Commands
@@ -56,11 +59,17 @@ dig @localhost -x 10.0.0.10  # Test reverse DNS
 
 **Base template auto-shutdown**: The base template cloud-init includes `base-shut-down.yaml` which powers off the VM after first boot (enabling `qm template` to convert it unattended). VMs that should stay running (e.g. `blank`) include a `topper` cloud-config that overrides the shutdown.
 
-**VM Cloning Pattern**: All VMs clone from base template (9999) and apply:
+**VM Cloning Pattern**: Durable VMs full-clone from base template (9999) with `qm clone ... --full` and apply:
 - Custom cloud-init user data via MIME snippets
 - Static IP configuration in 10.0.0.0/24 network
 - Resource allocation (CPU cores, RAM) per VM type
 - Pool assignment (dev, uat, prod, templates)
+
+**Base template rebuild safety** (`vms/base/build-vm.sh`):
+- Default: if VM 9999 already exists, skip recreate (idempotent re-runs)
+- `--force-rebuild` (via `./init-base.sh IP --force-rebuild` or `./init-proxmox.sh IP --force-rebuild-base`): destroy and recreate only when no linked clones reference `base-9999-disk`
+- Destroy failures are not ignored; scripts list dependent VM IDs and how to fix
+- `./init-proxmox.sh IP --nuke-vms` destroys known lab VMs (777, 100, 10000) and any linked clones of 9999 before VM setup
 
 **Network Configuration**:
 - Bridge: vmbr0

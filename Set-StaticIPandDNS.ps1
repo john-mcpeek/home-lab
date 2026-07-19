@@ -2,12 +2,18 @@
 
 <#
 .SYNOPSIS
-    Configure static IP address and DNS servers on a Windows 11 network adapter.
+    Configure static IP address and lab DNS on a Windows 11 network adapter.
 
 .DESCRIPTION
     Sets a static IPv4 address, gateway, and DNS servers on the specified network adapter.
     This prevents DHCP from overriding DNS settings after reboot.
     Also disables IPv6 to prevent IPv6 DNS servers from taking precedence over IPv4 DNS.
+
+    Prefer Set-LabDNS.ps1 when you only need lab name resolution and can keep DHCP for IP.
+
+    Do NOT add public resolvers (8.8.8.8, 1.1.1.1) as secondary DNS on Windows: Smart
+    Multi-Homed Name Resolution queries servers in parallel and can cache NXDOMAIN for
+    pve.lab from the public resolver. Lab BIND recurses externally for non-lab names.
 
 .PARAMETER AdapterName
     Name of the network adapter to configure (e.g., "Ethernet", "Wi-Fi").
@@ -22,15 +28,18 @@
     Default gateway IP address (e.g., "10.0.0.1").
 
 .PARAMETER DnsServers
-    Array of DNS server IP addresses. First will be primary, second will be secondary.
+    DNS server IP addresses. Default: only 10.0.0.10 (lab BIND). Prefer a single entry.
+
+.PARAMETER DnsSuffix
+    Connection-specific DNS suffix. Default: lab.
 
 .EXAMPLE
-    .\Set-StaticIPandDNS.ps1 -AdapterName "Ethernet" -IPAddress "10.0.0.50" -Gateway "10.0.0.1" -DnsServers "10.0.0.10","8.8.8.8"
-    Sets static IP 10.0.0.50/24 with gateway 10.0.0.1 and DNS servers 10.0.0.10, 8.8.8.8
+    .\Set-StaticIPandDNS.ps1 -AdapterName "Ethernet" -IPAddress "10.0.0.50" -Gateway "10.0.0.1"
+    Sets static IP 10.0.0.50/24 with gateway 10.0.0.1 and DNS 10.0.0.10 only
 
 .EXAMPLE
     .\Set-StaticIPandDNS.ps1 -AdapterName "Wi-Fi" -IPAddress "10.0.0.51" -Gateway "10.0.0.1" -DnsServers "10.0.0.10"
-    Sets static configuration with single DNS server
+    Sets static configuration with lab DNS only
 
 .NOTES
     This will disable DHCP on the adapter. Make sure the IP address you choose doesn't conflict
@@ -53,8 +62,11 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$Gateway,
 
-    [Parameter(Mandatory=$true)]
-    [string[]]$DnsServers
+    [Parameter(Mandatory=$false)]
+    [string[]]$DnsServers = @("10.0.0.10"),
+
+    [Parameter(Mandatory=$false)]
+    [string]$DnsSuffix = "lab"
 )
 
 function Validate-IPAddress {
@@ -80,6 +92,14 @@ foreach ($dns in $DnsServers) {
         Write-Host "ERROR: Invalid DNS server address format: $dns" -ForegroundColor Red
         exit 1
     }
+}
+
+$publicDns = @('8.8.8.8', '8.8.4.4', '1.1.1.1', '1.0.0.1', '9.9.9.9', '75.75.75.75')
+$badSecondaries = @($DnsServers | Where-Object { $_ -in $publicDns })
+if ($badSecondaries.Count -gt 0) {
+    Write-Host "WARNING: Public DNS in list ($($badSecondaries -join ', '))." -ForegroundColor Yellow
+    Write-Host "  Windows may race them with lab DNS and cache NXDOMAIN for *.lab names." -ForegroundColor Yellow
+    Write-Host "  Prefer only the lab server (default 10.0.0.10). BIND forwards non-lab queries." -ForegroundColor Yellow
 }
 
 if ($PrefixLength -lt 1 -or $PrefixLength -gt 32) {
@@ -115,6 +135,7 @@ Write-Host "Adapter: $AdapterName"
 Write-Host "IP Address: $IPAddress/$PrefixLength"
 Write-Host "Gateway: $Gateway"
 Write-Host "DNS Servers: $($DnsServers -join ', ')"
+Write-Host "DNS Suffix: $DnsSuffix"
 Write-Host "IPv6: Will be disabled (prevents IPv6 DNS preference)"
 Write-Host ""
 
@@ -141,16 +162,33 @@ try {
 
     Write-Host "  IP address configured" -ForegroundColor Green
 
-    # Set DNS servers
+    # Set DNS servers (lab only recommended — see script notes)
     Write-Host "Setting DNS servers: $($DnsServers -join ', ')" -ForegroundColor Gray
     Set-DnsClientServerAddress -InterfaceIndex $adapter.InterfaceIndex -ServerAddresses $DnsServers
-
     Write-Host "  DNS servers configured" -ForegroundColor Green
+
+    Write-Host "Setting connection-specific DNS suffix: $DnsSuffix" -ForegroundColor Gray
+    Set-DnsClient -InterfaceIndex $adapter.InterfaceIndex `
+        -ConnectionSpecificSuffix $DnsSuffix `
+        -RegisterThisConnectionsAddress $true `
+        -UseSuffixWhenRegistering $false
+    Write-Host "  DNS suffix configured" -ForegroundColor Green
 
     # Disable IPv6 to prevent IPv6 DNS preference
     Write-Host "Disabling IPv6 on adapter..." -ForegroundColor Gray
     Disable-NetAdapterBinding -Name $AdapterName -ComponentID ms_tcpip6 -Confirm:$false
     Write-Host "  IPv6 disabled" -ForegroundColor Green
+
+    # Prefer adapter DNS over automatic DoH (Win11)
+    try {
+        $dohPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters'
+        if (Test-Path $dohPath) {
+            New-ItemProperty -Path $dohPath -Name EnableAutoDoh -PropertyType DWord -Value 0 -Force | Out-Null
+            Write-Host "  Automatic DNS-over-HTTPS disabled" -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "  WARNING: Could not disable DoH: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
 
     # Flush DNS cache
     Clear-DnsClientCache

@@ -69,14 +69,44 @@ write_files:
     content: |
       #!/usr/bin/env bash
       set -euo pipefail
-      
-      echo "Building the base image"
+
+      # Do not use shell vars named K8S_VERSION / K8S_SERIES here: cloud-init
+      # generation runs envsubst on those names and would bake them in at
+      # template render time, breaking "$1" overrides.
+      if [ "$#" -lt 1 ] || [ -z "${1:-}" ]; then
+        echo "Usage: $0 <k8s-version>   # e.g. 1.36.2 or v1.36.2"
+        exit 1
+      fi
+      VER="${1#v}"
+      SERIES="$(printf '%s\n' "$VER" | cut -d. -f1-2)"
+
+      # pkgs.k8s.io package revision is not always "-1.1" (e.g. 1.36.2-2.1).
+      # Resolve the real kubelet deb version so Packer/Ansible install succeeds.
+      PACKAGES_URL="https://pkgs.k8s.io/core:/stable:/v${SERIES}/deb/Packages"
+      echo "Resolving kubelet deb package for ${VER} from ${PACKAGES_URL}..."
+      DEB_VERSION="$(
+        curl -fsSL "${PACKAGES_URL}" | awk -v ver="${VER}" '
+          $1 == "Package:" && $2 == "kubelet" { want = 1; next }
+          want && $1 == "Version:" {
+            if ($2 ~ ("^" ver "-")) print $2
+            want = 0
+          }
+        ' | sort -V | tail -n1
+      )"
+      if [ -z "${DEB_VERSION}" ]; then
+        echo "ERROR: no kubelet package matching ${VER}-* in pkgs.k8s.io (series v${SERIES})"
+        echo "Pick a version that exists, e.g. 1.36.1 or 1.35.6"
+        exit 1
+      fi
+      echo "Using kubernetes_deb_version=${DEB_VERSION}"
+
+      echo "Building the base image for Kubernetes ${VER}"
       echo "Removing existing image-builder directory"
       rm -rf capi-image-builder
-      
+
       echo "Cloning kubernetes-sigs/image-builder..."
       git clone https://github.com/kubernetes-sigs/image-builder.git --depth 1 capi-image-builder
-      
+
       echo "Setting up Packer environment..."
       source /cluster-api/image-builder/proxmox.env
 
@@ -84,18 +114,18 @@ write_files:
 
       python3 -m venv capi-image-builder-venv
       source capi-image-builder-venv/bin/activate
-      
-      export PACKER_FLAGS="--var 'kubernetes_series=v${K8S_SERIES}' --var 'kubernetes_semver=v${K8S_VERSION}' --var 'kubernetes_deb_version=${K8S_VERSION}-1.1' --var 'crictl_version=${K8S_SERIES}.0'"
+
+      export PACKER_FLAGS="--var 'kubernetes_series=v${SERIES}' --var 'kubernetes_semver=v${VER}' --var 'kubernetes_deb_version=${DEB_VERSION}' --var 'crictl_version=${SERIES}.0'"
       echo "Packer flags: ${PACKER_FLAGS}"
-      
+
       echo "Installing build dependencies (Packer, etc.)..."
       make deps-proxmox
 
-      echo "Building CAPI Proxmox template (Ubuntu 24.04 + Kubernetes ${K8S_VERSION})..."
+      echo "Building CAPI Proxmox template (Ubuntu 24.04 + Kubernetes ${VER})..."
       make build-proxmox-ubuntu-2404
-      
+
       echo "=================================================================="
-      echo "✅ Build finished!"
+      echo "Build finished!"
       echo "The new VM template is now available in Proxmox."
       echo "Note the Template ID (shown at the end of the Packer output)."
       echo ""

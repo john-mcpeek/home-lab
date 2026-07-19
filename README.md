@@ -70,6 +70,28 @@ echo "yourPostgresPassword" > ./postgres-password
 1. You will be prompted to accept the Proxmox host as a known SSH host.
 2. The script reads both passwords from their respective files — no interactive prompts after that.
 
+### Re-runs and base template rebuild
+
+Re-running `./init-proxmox.sh` is safe for host setup and **skips recreating base template 9999** if it already exists. Durable lab VMs (blank, postgres, cluster-api-manager) are **full clones**, so they do not pin the template disk.
+
+| Flag | Effect |
+|------|--------|
+| *(default)* | Skip base template if VM 9999 exists; recreate blank/postgres/capi-manager |
+| `--force-rebuild-base` | Destroy and recreate template 9999 (fails with a clear error if linked clones still exist) |
+| `--nuke-vms` | Destroy VMs 777, 100, 10000 and any linked clones of 9999 first (destructive) |
+| `--nuke-vms --force-rebuild-base` | Full lab VM wipe + new base template, then recreate VMs |
+
+```bash
+# Keep existing base template; finish/recreate other VMs
+./init-proxmox.sh 10.0.0.10
+
+# Rebuild base only when nothing still depends on it
+./init-proxmox.sh 10.0.0.10 --force-rebuild-base
+
+# Nuclear option (destroys postgres data and other lab VMs)
+./init-proxmox.sh 10.0.0.10 --nuke-vms --force-rebuild-base
+```
+
 ## What Gets Created
 
 ### Proxmox Host Configuration
@@ -144,8 +166,9 @@ echo "yourPostgresPassword" > ./postgres-password
 ├── init-proxmox.sh                  # Main entry point — runs all init-*.sh scripts
 ├── root-password                    # Proxmox root password (gitignored)
 ├── postgres-password                # PostgreSQL password (gitignored)
-├── Reset-DNS.ps1                    # Windows: reset DNS to DHCP
-├── Set-StaticIPandDNS.ps1           # Windows: set static IP and point DNS at lab
+├── Set-LabDNS.ps1                   # Windows: point DNS at lab (keep DHCP for IP) — preferred
+├── Set-StaticIPandDNS.ps1           # Windows: static IP + lab DNS (optional)
+├── Reset-DNS.ps1                    # Windows: reset DNS/suffix back to DHCP
 ├── proxmox/
 │   ├── proxmox-setup.sh             # Runs on Proxmox: repos, packages, BIND9, pools, users
 │   ├── auto-install/
@@ -196,11 +219,11 @@ cd vms
 
 ## VM Creation Pattern
 
-All VMs clone from the base template (VM ID 9999):
+All durable lab VMs **full-clone** from the base template (VM ID 9999) so the template disk can be replaced without tearing down children:
 
 ```bash
-# Clone template
-qm clone 9999 <VM_ID> --name <VM_NAME> --pool <POOL>
+# Full clone of template (preferred for lab VMs that should outlive base rebuilds)
+qm clone 9999 <VM_ID> --name <VM_NAME> --full --pool <POOL>
 
 # Configure resources
 qm set <VM_ID> --cores <CORES>
@@ -225,15 +248,28 @@ VM IDs match the last octet of their static IP for easy identification.
 
 ## Windows Host Setup
 
-Two PowerShell scripts configure the Windows host to use the lab's DNS:
+PowerShell scripts (run elevated) configure the Windows host to use lab BIND9 at `10.0.0.10`.
+
+**Preferred:** DNS only — keep DHCP for your IP. Do **not** add `8.8.8.8` as a second Windows
+nameserver; Windows can race public resolvers and cache NXDOMAIN for `*.lab`. Lab BIND already
+forwards non-lab queries via its forwarders.
 
 ```powershell
-# Point the active NIC at the lab DNS server
-.\Set-StaticIPandDNS.ps1
+# Point active NIC(s) at lab DNS (default 10.0.0.10), set suffix "lab", disable auto-DoH
+.\Set-LabDNS.ps1
 
-# Revert — reset the NIC back to DHCP
+# Or a single adapter
+.\Set-LabDNS.ps1 -AdapterName "Ethernet"
+
+# Optional: full static IP + lab DNS (defaults DNS to 10.0.0.10 only)
+.\Set-StaticIPandDNS.ps1 -AdapterName "Ethernet" -IPAddress "10.0.0.50" -Gateway "10.0.0.1"
+
+# Revert — DNS/suffix back to DHCP
 .\Reset-DNS.ps1
 ```
+
+**Windows 11 DNS-over-HTTPS:** `Set-LabDNS.ps1` turns off automatic DoH. If name resolution still
+bypasses the lab, check Settings → Network & internet → [adapter] → DNS → **DNS over HTTPS: Off**.
 
 ## DNS Testing
 
@@ -250,6 +286,15 @@ named-checkzone lab /var/lib/bind/db.lab
 named-checkzone 0.0.10.in-addr.arpa /var/lib/bind/db.10.0.0
 ```
 
+From Windows (PowerShell):
+
+```powershell
+Resolve-DnsName pve.lab -Server 10.0.0.10   # direct to BIND
+Resolve-DnsName pve.lab                     # system resolver (what ping uses)
+Test-NetConnection 10.0.0.10 -Port 53
+ping pve.lab
+```
+
 ## SSH Access
 
 ```bash
@@ -259,6 +304,15 @@ ssh -i ~/.ssh/ansible ansible@<VM_IP>
 
 ## Troubleshooting
 
+### Windows can reach 10.0.0.10 but `ping pve.lab` fails
+
+1. Confirm BIND answers: `Resolve-DnsName pve.lab -Server 10.0.0.10` (or `dig @10.0.0.10 pve.lab` from WSL/Proxmox).
+2. Confirm Windows is using only lab DNS: `Get-DnsClientServerAddress -AddressFamily IPv4`.
+3. Avoid public secondaries on the NIC (`8.8.8.8` / `1.1.1.1`) — they race lab DNS on Windows.
+4. Disable DNS-over-HTTPS if still stuck (see Windows Host Setup).
+5. Flush cache: `Clear-DnsClientCache`.
+6. On Proxmox: `systemctl status named`; open UDP/TCP 53 if host firewall is enabled.
+
 ### BIND9 Not Starting
 
 ```bash
@@ -266,6 +320,30 @@ systemctl status named
 journalctl -u named --no-pager | tail -30
 apparmor_parser -r /etc/apparmor.d/usr.sbin.named
 ```
+
+### `pve.lab` SERVFAIL / "DNS server failure" (zone not loaded)
+
+Symptom: ICMP to `10.0.0.10` works; `Resolve-DnsName pve.lab -Server 10.0.0.10` returns
+server failure; reverse may still work.
+
+Cause: after zone files are overwritten, a stale BIND journal can fail load:
+
+```text
+zone lab/IN: journal rollforward failed: journal out of sync with zone
+zone lab/IN: not loaded due to errors.
+```
+
+Fix on Proxmox:
+
+```bash
+rm -f /var/lib/bind/db.lab.jnl /var/lib/bind/db.10.0.0.jnl
+systemctl restart named
+rndc zonestatus lab
+dig @10.0.0.10 pve.lab +short   # expect 10.0.0.10
+```
+
+`proxmox-setup.sh` now removes these journals whenever it redeploys zone files.
+DDNS-registered VM names will re-register on next VM boot / nsupdate.
 
 ### Base Template Auto-Shutdown
 

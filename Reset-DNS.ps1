@@ -47,8 +47,17 @@ function Reset-DnsServerForAdapter {
     try {
         # Reset to automatic (DHCP)
         Set-DnsClientServerAddress -InterfaceIndex $Adapter.InterfaceIndex -ResetServerAddresses
-
         Write-Host "  DNS reset to automatic (DHCP)" -ForegroundColor Green
+
+        # Clear lab connection-specific suffix if present
+        try {
+            Set-DnsClient -InterfaceIndex $Adapter.InterfaceIndex -ResetConnectionSpecificSuffix
+            Write-Host "  Connection-specific DNS suffix cleared" -ForegroundColor Green
+        } catch {
+            # Older Windows builds may lack -ResetConnectionSpecificSuffix
+            Set-DnsClient -InterfaceIndex $Adapter.InterfaceIndex -ConnectionSpecificSuffix "" -ErrorAction SilentlyContinue
+            Write-Host "  Connection-specific DNS suffix cleared" -ForegroundColor Green
+        }
 
         # Re-enable IPv6 if it was disabled
         if (-not $ipv6Binding.Enabled) {
